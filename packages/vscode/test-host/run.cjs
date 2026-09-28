@@ -161,6 +161,11 @@ async function main() {
       "--skip-welcome",
       "--skip-release-notes",
     ];
+    if (
+      process.platform === "linux" &&
+      process.env.BICEPFLEX_TEST_NO_SANDBOX === "1"
+    )
+      args.push("--no-sandbox");
     const env = { ...process.env, BICEPFLEX_HOST_EVIDENCE: evidence };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.VSCODE_IPC_HOOK_CLI;

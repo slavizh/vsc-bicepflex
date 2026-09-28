@@ -43,6 +43,9 @@ The fixture workspace has no npm dependencies and uses a fresh disposable
 profile for every run. The installed-VSIX suite checks both Bicep file types,
 format-on-save, settings metadata and precedence, project configuration
 without installed plugins, invalid-input refusals, and offline JSON completion.
+Linux hosted CI sets `BICEPFLEX_TEST_NO_SANDBOX=1` for the downloaded VS Code
+test host because the runner cannot install its SUID sandbox helper; ordinary
+local extension runs are not affected.
 For an additional coexistence check, set `BICEPFLEX_BICEP_VSIX` to the
 official `vscode-bicep.vsix` for Bicep 0.47.16 before running the host test.
 It then also checks that the language server diagnoses invalid Bicep while
