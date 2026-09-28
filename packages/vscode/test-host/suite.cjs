@@ -9,6 +9,27 @@ async function run() {
   const extension = vscode.extensions.getExtension("slavizh.bicepflex");
   assert.ok(extension);
   await extension.activate();
+  const contributed =
+    extension.packageJSON.contributes.configuration.properties;
+  const configurationOptions = Object.keys(contributed).filter((key) =>
+    key.startsWith("bicepFlex."),
+  );
+  assert.equal(configurationOptions.length, 40);
+  assert.deepEqual(
+    configurationOptions.map((key) => contributed[key].order),
+    Array.from(
+      { length: configurationOptions.length },
+      (_, index) => index + 1,
+    ),
+  );
+  for (const key of configurationOptions) {
+    const setting = contributed[key];
+    assert.match(setting.description, /Default:/, key);
+    if (setting.enum) {
+      assert.equal(setting.enum.length, setting.enumDescriptions.length, key);
+      assert.ok(setting.enumDescriptions.every(Boolean), key);
+    }
+  }
   const bicepExtension = process.env.BICEPFLEX_BICEP_VSIX
     ? vscode.extensions.getExtension("ms-azuretools.vscode-bicep")
     : undefined;
@@ -59,6 +80,7 @@ async function run() {
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
+  assert.equal(config.inspect("bicepArrayLayout").defaultValue, "compact");
   await config.update("bicepTabWidth", 4, vscode.ConfigurationTarget.Workspace);
   await fs.writeFile(
     path.join(folder.uri.fsPath, "settings.bicep"),
@@ -155,6 +177,114 @@ async function run() {
   );
   await vscode.commands.executeCommand("editor.action.formatDocument");
   assert.match(configured.getText(), /\n {3}enabled: true\n/);
+  await config.update("tabWidth", 4, vscode.ConfigurationTarget.Workspace);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(configured.getText(), /\n {3}enabled: true\n/);
+  await vscode.window.showTextDocument(doc);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(doc.getText(), /\n {4}enabled: true\n/);
+  await config.update("bicepTabWidth", 2, vscode.ConfigurationTarget.Workspace);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(doc.getText(), /\n {2}enabled: true\n/);
+  await config.update(
+    "bicepIndentStyle",
+    "tabs",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(doc.getText(), /\n\tenabled: true\n/);
+  await config.update(
+    "bicepIndentStyle",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await config.update(
+    "bicepTabWidth",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await config.update(
+    "tabWidth",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "choices.bicep"),
+    "output names array=['one','two']\n",
+  );
+  const choices = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "choices.bicep"),
+  );
+  await vscode.window.showTextDocument(choices);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(choices.getText(), /\['one', 'two'\]/);
+  await config.update(
+    "bicepArrayLayout",
+    "multiline",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(choices.getText(), /\[\n\s+'one'\n\s+'two'\n\]/);
+  await config.update(
+    "bicepArrayLayout",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await config.update(
+    "bicepArrayLayout",
+    "invalid",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "invalid-setting.bicep"),
+    "output names array=['one','two']\n",
+  );
+  const invalidSetting = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "invalid-setting.bicep"),
+  );
+  await vscode.window.showTextDocument(invalidSetting);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(invalidSetting.getText(), "output names array=['one','two']\n");
+  await config.update(
+    "bicepArrayLayout",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(invalidSetting.getText(), /\['one', 'two'\]/);
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "ordered.bicep"),
+    "output result string='done'\nparam unused string\n",
+  );
+  const ordered = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "ordered.bicep"),
+  );
+  await vscode.window.showTextDocument(ordered);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.ok(ordered.getText().startsWith("param unused"));
+  await config.update(
+    "bicepDeclarationOrder",
+    ["output", "param"],
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.ok(ordered.getText().startsWith("output result"));
+  await config.update(
+    "bicepDeclarationOrder",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.ok(ordered.getText().startsWith("param unused"));
+  const alreadyFormatted = await vscode.commands.executeCommand(
+    "vscode.executeFormatDocumentProvider",
+    ordered.uri,
+    { insertSpaces: true, tabSize: 2 },
+  );
+  assert.ok(
+    alreadyFormatted === undefined || alreadyFormatted.length === 0,
+    "An already formatted document needs no further edits",
+  );
   const schemaDocument = await vscode.workspace.openTextDocument(
     vscode.Uri.joinPath(folder.uri, "config-case", ".prettierrc.json"),
   );
@@ -235,6 +365,93 @@ async function run() {
     "opinionated",
     vscode.ConfigurationTarget.Workspace,
   );
+  await config.update(
+    "preset",
+    "unsupported",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "invalid-preset.bicep"),
+    "output result string='hi'\n",
+  );
+  const invalidPreset = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "invalid-preset.bicep"),
+  );
+  await vscode.window.showTextDocument(invalidPreset);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(invalidPreset.getText(), "output result string='hi'\n");
+  await config.update(
+    "preset",
+    "opinionated",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(invalidPreset.getText(), "output result string = 'hi'\n");
+  const editorConfig = vscode.workspace.getConfiguration("editor");
+  await editorConfig.update(
+    "formatOnSave",
+    true,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await editorConfig.update(
+    "formatOnSaveMode",
+    "file",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  const saved = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "sample.bicep"),
+  );
+  const savedEditor = await vscode.window.showTextDocument(saved);
+  await savedEditor.edit((edit) =>
+    edit.replace(
+      new vscode.Range(
+        saved.positionAt(0),
+        saved.positionAt(saved.getText().length),
+      ),
+      "output greeting string='changed'\n",
+    ),
+  );
+  assert.equal(await saved.save(), true);
+  assert.equal(saved.getText(), "output greeting string = 'changed'\n");
+  assert.equal(
+    await fs.readFile(path.join(folder.uri.fsPath, "sample.bicep"), "utf8"),
+    saved.getText(),
+  );
+  const savedParams = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "sample.bicepparam"),
+  );
+  const savedParamsEditor = await vscode.window.showTextDocument(savedParams);
+  await savedParamsEditor.edit((edit) =>
+    edit.replace(
+      new vscode.Range(
+        savedParams.positionAt(0),
+        savedParams.positionAt(savedParams.getText().length),
+      ),
+      "using none\r\nparam greeting='changed'\r\n",
+    ),
+  );
+  assert.equal(await savedParams.save(), true);
+  assert.equal(
+    savedParams.getText(),
+    "using none\r\n\r\nparam greeting = 'changed'\r\n",
+  );
+  assert.equal(
+    await fs.readFile(
+      path.join(folder.uri.fsPath, "sample.bicepparam"),
+      "utf8",
+    ),
+    savedParams.getText(),
+  );
+  await editorConfig.update(
+    "formatOnSave",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await editorConfig.update(
+    "formatOnSaveMode",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
   await fs.writeFile(
     path.join(folder.uri.fsPath, "invalid.bicep"),
     "output result string =\n",
@@ -245,6 +462,16 @@ async function run() {
   await vscode.window.showTextDocument(invalid);
   await vscode.commands.executeCommand("editor.action.formatDocument");
   assert.equal(invalid.getText(), "output result string =\n");
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "invalid.bicepparam"),
+    "using none\nparam name =\n",
+  );
+  const invalidParams = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "invalid.bicepparam"),
+  );
+  await vscode.window.showTextDocument(invalidParams);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(invalidParams.getText(), "using none\nparam name =\n");
   if (bicepExtension) {
     let found = false;
     for (let attempt = 0; attempt < 90; attempt++) {
@@ -304,7 +531,11 @@ async function run() {
       userOptions: true,
       projectConfigWithoutPluginInstall: true,
       minimalPreset: true,
+      settingsAndPrecedence: true,
+      formatOnSave: true,
       invalidSyntaxRefused: true,
+      invalidParametersRefused: true,
+      invalidSettingsRefused: true,
       unknownOptionsRefused: true,
       offlineSchemaCompletion: true,
       bicepExtensionActive: bicepExtension?.isActive ?? false,

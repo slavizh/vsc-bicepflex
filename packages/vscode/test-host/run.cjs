@@ -6,13 +6,15 @@ const os = require("node:os");
 const path = require("node:path");
 
 const extension = path.resolve(__dirname, "..");
-const profile = path.resolve(extension, "artifacts", "host-profile");
-const extensions = path.resolve(extension, "artifacts", "host-extensions");
-const evidence = path.resolve(extension, "artifacts", "host-evidence.json");
 
 async function main() {
-  const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "bicepflex-host-"));
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), "bicepflex-host-"));
+  const workspace = path.join(temp, "workspace");
+  const profile = path.join(temp, "profile");
+  const extensions = path.join(temp, "extensions");
+  const evidence = path.join(temp, "host-evidence.json");
   try {
+    await fs.mkdir(path.join(extension, "artifacts"), { recursive: true });
     const installed = path.join(
       process.env.LOCALAPPDATA ?? "",
       "Programs",
@@ -49,7 +51,7 @@ async function main() {
     await fs.writeFile(
       path.join(workspace, "config-case", ".prettierrc.json"),
       JSON.stringify({
-        plugins: ["@slavizh/prettier-plugin-bicep"],
+        plugins: ["@slavizh/prettier-plugin-bicep", "not-installed-plugin"],
         bicepTabWidth: 3,
         bicepIndentStyle: "spaces",
         bicepSortDeclarations: true,
@@ -201,7 +203,7 @@ async function main() {
     assert.equal(report.success, true);
     console.log(JSON.stringify(report, null, 2));
   } finally {
-    await fs.rm(workspace, { recursive: true, force: true });
+    await fs.rm(temp, { recursive: true, force: true });
   }
 }
 

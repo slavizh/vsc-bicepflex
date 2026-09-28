@@ -288,7 +288,16 @@ npm run build:extension
 npm test
 npm run test:host --workspace=bicepflex
 npm run package --workspace=bicepflex
+npm run test:coverage
 ```
+
+`npm run test:coverage` instruments the TypeScript formatter, the extension
+inside a real VS Code host, and the managed bridge, then prints separate line
+and branch totals. CI uploads the source-level summaries and native Cobertura
+report. `npm run test:coverage:enforce` requires 100% of both metrics in all
+three components; the suite does not yet meet that target. Coverage is a
+measurement of exercised paths, not a guarantee of correct formatting for
+every Bicep input.
 
 `npm run test:corpus` uses the official Bicep 0.47.16 samples extracted under
 `artifacts/upstream/bicep-0.47.16/src/Bicep.Core.Samples/Files`, or a directory
@@ -298,9 +307,10 @@ The runner records idempotence and expected syntax-error refusals in
 
 ## Publishing
 
-See [RELEASING.md](RELEASING.md). Creating this repository does not publish
-the VS Code extension; the Marketplace publisher and release credentials must
-be configured by the maintainer.
+Contribute through a branch and pull request into `main`. Once merged and
+verified, pushing a version-matching tag runs CI again and attaches the
+tested VSIX to a GitHub Release. Marketplace publication is a separate manual
+workflow requiring publisher credentials. See [RELEASING.md](RELEASING.md).
 
 MIT licensed. Dependency notices ship in `THIRD-PARTY-NOTICES` and the generated
 bridge license inventory. This project is not affiliated with or endorsed by
