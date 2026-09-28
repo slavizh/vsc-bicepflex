@@ -308,7 +308,6 @@ const manifestPath = fileURLToPath(
 );
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const configurationSettings = manifest.contributes.configuration.properties;
-delete configurationSettings["bicepFlex.options"];
 configurationSettings["bicepFlex.preset"].description =
   'Choose a formatting policy. "opinionated" — use dependency-aware ordering; "minimal" — avoid optional declaration and property reordering. Default: "opinionated".';
 configurationSettings["bicepFlex.preset"].enumDescriptions = [

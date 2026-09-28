@@ -123,7 +123,7 @@ test("bridge refuses oversized requests before starting the managed process", as
   );
 });
 
-test("native bridge identifies old clients before deserializing legacy ordering settings", async () => {
+test("native bridge rejects incompatible requests before deserializing options", async () => {
   const requests = [
     {
       text: "param name string\n",

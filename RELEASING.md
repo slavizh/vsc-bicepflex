@@ -4,10 +4,10 @@
    the VSIX manifest, Bicep version, formatting rules, and all redistributed
    dependency licenses. Do not imply Microsoft or Prettier endorsement.
 2. Update the version only in `packages/vscode/package.json` (for example,
-   `npm version 0.2.0 --workspace=bicepflex --no-git-tag-version`), and commit
+   `npm version minor --workspace=bicepflex --no-git-tag-version`), and commit
    the generated `package-lock.json` change. Update the changelog. Keep
-   `dist/extension.mjs` and
-   `dist/bridge` from the same build. If the bridge contract changes, increment
+   `dist/extension.mjs` and `dist/bridge` from the same build. If the bridge
+   contract changes, increment
    the protocol version in `src/bridge.ts` and `native/Bicep.Formatter/Program.cs`
    together. Updates to Azure.Bicep.Core require compiler-equivalence, corpus,
    and VS Code host verification; the language server cannot substitute for

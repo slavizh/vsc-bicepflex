@@ -67,18 +67,13 @@ descriptions explain each choice. For machine-wide options, use User Settings:
 
 Only individual `bicepFlex.*` settings appear in the VS Code Settings UI.
 BicepFlex settings override project configuration; an optional project config
-supplies values for settings you have not specified. If you used the older
-`bicepFlex.options` object, move each entry to its own
-`bicepFlex.<optionName>` setting. The grouped setting is no longer supported.
-
-If upgrading from an earlier local VSIX, change the settings prefix to
-`bicepFlex` in User and Workspace Settings.
+supplies values for settings you have not specified.
 
 `bicepFlex.preset` can be `"opinionated"` (default) or `"minimal"`.
 An existing project `.prettierrc.json` supplies options unless overridden by
-BicepFlex settings. If it lists
-`"@slavizh/prettier-plugin-bicep"` in `plugins`, the extension uses its bundled
-plugin instead; no npm installation is necessary for VS Code formatting.
+BicepFlex settings. The extension always uses its bundled Bicep plugin,
+regardless of any `plugins` entries in project configuration; no npm
+installation is necessary for VS Code formatting.
 Project configs and EditorConfig are read only in trusted workspaces.
 This extension is editor-only; `npx prettier` and CI formatting would require
 a separately installed Prettier plugin. See
@@ -208,7 +203,7 @@ project Prettier configuration. See [CONFIGURATION.md](CONFIGURATION.md) for eve
 value, default, precedence rule, and example. Defaults remain opinionated; you
 only need to specify the settings you want to change.
 
-Ordering settings are now **JSON arrays**, listed from first to last:
+Ordering settings are **JSON arrays**, listed from first to last:
 
 ```json
 {
@@ -228,10 +223,8 @@ Ordering settings are now **JSON arrays**, listed from first to last:
 ```
 
 `*` marks unlisted properties; their relative order is preserved. Empty arrays,
-duplicates, invalid names, and legacy comma-separated strings are rejected.
-Existing comma lists must be converted, for example `"name,*,properties"` becomes
-`["name", "*", "properties"]`. This applies to declaration, resource-property,
-module-property, and decorator priorities.
+duplicates, invalid names, and string values are rejected. Array priorities
+apply to declarations, resource properties, module properties, and decorators.
 
 The VSIX provides offline IntelliSense for Bicep options in JSON `.prettierrc`
 files and contributes the same settings to VS Code Settings. No `$schema`

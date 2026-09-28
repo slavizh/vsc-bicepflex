@@ -51,7 +51,7 @@ async function main() {
     await fs.writeFile(
       path.join(workspace, "config-case", ".prettierrc.json"),
       JSON.stringify({
-        plugins: ["@slavizh/prettier-plugin-bicep", "not-installed-plugin"],
+        plugins: ["not-installed-plugin"],
         bicepTabWidth: 3,
         bicepIndentStyle: "spaces",
         bicepSortDeclarations: true,

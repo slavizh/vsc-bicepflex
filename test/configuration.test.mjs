@@ -102,7 +102,6 @@ test("VS Code settings and offline schema cover the same Bicep options", async (
   );
   assert.deepEqual(editorSchema, schema);
   const contributed = manifest.contributes.configuration.properties;
-  assert.equal(contributed["bicepFlex.options"], undefined);
   assert.deepEqual(
     Object.keys(contributed).sort(),
     [
@@ -190,4 +189,28 @@ test("VS Code settings and offline schema cover the same Bicep options", async (
     ["bicep", "bicep-params"],
   );
   assert.equal(manifest.extensionDependencies, undefined);
+});
+
+test("published guides describe the initial 0.2.0 settings", async () => {
+  for (const path of [
+    "README.md",
+    "CONFIGURATION.md",
+    "RELEASING.md",
+    "packages/vscode/README.md",
+  ]) {
+    const guide = await readFile(
+      new URL(`../${path}`, import.meta.url),
+      "utf8",
+    );
+    assert.doesNotMatch(
+      guide,
+      /bicepFlex\.options|@slavizh\/prettier-plugin-bicep|slavizh\/Prettier-Plugin-Bicep|0\.1\.\d+/i,
+      path,
+    );
+  }
+  const changelog = await readFile(
+    new URL("../CHANGELOG.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(changelog, /^## 0\.2\.0 \(first release\)$/m);
 });
