@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (first release)
 
 - Distribute a standalone VS Code formatter that bundles Prettier, the Bicep
   plugin and compiler bridge. No project-local npm installation or separate
@@ -13,3 +13,5 @@
   structured bridge/runtime/syntax errors.
 - Keep structural, comment and compiler-diagnostic safety gates; preserve line
   endings by default to avoid changing multiline-string values.
+- Verify Linux, Windows, and macOS builds in CI; publish the tested VSIX as a
+  GitHub Release asset when a version-matching tag is pushed from `main`.

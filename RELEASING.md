@@ -3,16 +3,21 @@
 1. Verify ownership of the `slavizh` Visual Studio Marketplace publisher. Review
    the VSIX manifest, Bicep version, formatting rules, and all redistributed
    dependency licenses. Do not imply Microsoft or Prettier endorsement.
-2. Update the extension version and changelogs. Keep `dist/extension.mjs` and
-   `dist/bridge` from the same build. If the bridge contract changes, increment
+2. Update the version only in `packages/vscode/package.json` (for example,
+   `npm version minor --workspace=bicepflex --no-git-tag-version`), and commit
+   the generated `package-lock.json` change. Update the changelog. Keep
+   `dist/extension.mjs` and `dist/bridge` from the same build. If the bridge
+   contract changes, increment
    the protocol version in `src/bridge.ts` and `native/Bicep.Formatter/Program.cs`
    together. Updates to Azure.Bicep.Core require compiler-equivalence, corpus,
    and VS Code host verification; the language server cannot substitute for
    the compiler-backed ordering and safety checks.
-3. Require successful CI, including format idempotence, compiler equivalence,
-   official corpus, and real VS Code formatting from the packaged VSIX.
-4. Configure a protected GitHub `release` environment with reviewers and
-   store `VSCE_PAT` as a secret, never a file.
+3. Work on a branch and open a pull request into `main`. Require passing
+   Linux, Windows, and macOS CI before merging. Linux CI additionally runs
+   coverage measurement, the official corpus, and a real VS Code host test
+   against the packaged VSIX.
+4. Configure a protected GitHub `release` environment with reviewers.
+   Store `VSCE_PAT` as a secret only if publishing to the Marketplace.
 
 ## Build and test
 
@@ -22,12 +27,28 @@ npm run check
 npm run test:corpus
 npm run package --workspace=bicepflex
 npm run test:host --workspace=bicepflex
+npm run test:coverage
 ```
+
+`npm run test:coverage` restores the pinned .NET coverage tool and measures
+line and branch coverage for the TypeScript engine, the VS Code extension in
+an isolated host, and the managed bridge. Reports are written under
+`artifacts/coverage`, with component totals in `summary.json`, and uploaded
+by CI. Run `npm run test:coverage:enforce`
+to require 100% line and branch coverage in each production component. Coverage
+is not yet at that threshold, so this strict command currently fails; CI
+reports the actual results rather than misrepresenting them as complete.
 
 For the installed-VSIX host test, set `BICEPFLEX_TEST_PACKAGED=1` before
 the last command. Without it, the test loads the development extension.
 The runner uses an installed VS Code on Windows or downloads a pinned test host.
-The fixture workspace has no npm dependencies and uses an isolated profile.
+The fixture workspace has no npm dependencies and uses a fresh disposable
+profile for every run. The installed-VSIX suite checks both Bicep file types,
+format-on-save, settings metadata and precedence, project configuration
+without installed plugins, invalid-input refusals, and offline JSON completion.
+Linux hosted CI sets `BICEPFLEX_TEST_NO_SANDBOX=1` for the downloaded VS Code
+test host because the runner cannot install its SUID sandbox helper; ordinary
+local extension runs are not affected.
 For an additional coexistence check, set `BICEPFLEX_BICEP_VSIX` to the
 official `vscode-bicep.vsix` for Bicep 0.47.16 before running the host test.
 It then also checks that the language server diagnoses invalid Bicep while
@@ -45,13 +66,23 @@ For WSL/SSH/containers, the runtime is required on the remote extension host.
 
 ## Publish
 
-The manual **Release** workflow runs CI then publishes the verified VSIX.
-It does not trigger automatically on tags or commits. After reviewing the
-artifact, invoke the protected release workflow. For a manual upload with
-Marketplace credentials already configured:
+After the pull request merges and CI on `main` succeeds, create a tag
+`v<extension-version>` on that commit and push it. The **GitHub Release** workflow rejects tags
+that do not match `packages/vscode/package.json` or do not point to a commit
+on `main`. It reruns CI on the tagged commit, then creates a GitHub Release
+with **the VSIX that passed the packaged-host test** attached as an asset.
+The `release` environment can require approval before publication. Do not
+move a published tag or reuse an extension version.
 
-```console
-npm exec --workspace=bicepflex -- vsce publish --packagePath packages/vscode/bicepflex-0.1.2.vsix
+To publish the same version to the Visual Studio Marketplace, run the
+manual **Marketplace** workflow against the released **tag**, not `main`.
+It checks that a GitHub Release already exists, reruns CI for the tag, and
+publishes its verified VSIX using the `VSCE_PAT` secret. For a manual upload
+with Marketplace credentials already configured:
+
+```powershell
+$version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+npm exec --workspace=bicepflex -- vsce publish --packagePath "packages/vscode/bicepflex-$version.vsix"
 ```
 
 Confirm the published version on the Marketplace. Never attempt to republish

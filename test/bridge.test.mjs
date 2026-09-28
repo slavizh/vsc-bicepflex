@@ -4,7 +4,11 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { format } from "prettier";
 import plugin, { BicepFormattingError } from "../dist/index.js";
-import { bridgeProtocolVersion, parseBridgeOutput } from "../dist/bridge.js";
+import {
+  bridgeProtocolVersion,
+  formatNative,
+  parseBridgeOutput,
+} from "../dist/bridge.js";
 
 test("bridge response validation refuses stale, malformed and unsuccessful responses", () => {
   for (const response of [
@@ -68,7 +72,58 @@ test("bridge response validation refuses stale, malformed and unsuccessful respo
   );
 });
 
-test("native bridge identifies old clients before deserializing legacy ordering settings", async () => {
+test("bridge validates error metadata, exit failures, and missing runtimes", () => {
+  const response = {
+    protocolVersion: bridgeProtocolVersion,
+    error: "Cannot format this input",
+    code: "BICEP_SYNTAX_ERROR",
+    line: 3,
+    column: 5,
+    diagnosticCode: "BCP001",
+  };
+  assert.throws(
+    () => parseBridgeOutput(JSON.stringify(response), "", 1),
+    (error) => {
+      assert.equal(error.code, "BICEP_SYNTAX_ERROR");
+      assert.deepEqual(error.loc, { start: { line: 3, column: 5 } });
+      assert.equal(error.diagnosticCode, "BCP001");
+      return true;
+    },
+  );
+  for (const invalid of [
+    { ...response, line: 0 },
+    { ...response, column: -1 },
+    { ...response, code: 42 },
+    { ...response, diagnosticCode: 123 },
+    { protocolVersion: bridgeProtocolVersion },
+  ]) {
+    assert.throws(() => parseBridgeOutput(JSON.stringify(invalid), "", 1), {
+      code: "BICEP_BRIDGE_FAILED",
+    });
+  }
+  assert.throws(
+    () => parseBridgeOutput("invalid", "No frameworks were found.", null),
+    { code: "BICEP_RUNTIME_MISSING" },
+  );
+  assert.throws(
+    () =>
+      parseBridgeOutput(
+        JSON.stringify({ protocolVersion: bridgeProtocolVersion, error: "" }),
+        "bridge stderr",
+        1,
+      ),
+    /bridge stderr/,
+  );
+});
+
+test("bridge refuses oversized requests before starting the managed process", async () => {
+  await assert.rejects(
+    formatNative("x".repeat(32 * 1024 * 1024), { parser: "bicep" }),
+    { code: "BICEP_INPUT_LIMIT" },
+  );
+});
+
+test("native bridge rejects incompatible requests before deserializing options", async () => {
   const requests = [
     {
       text: "param name string\n",

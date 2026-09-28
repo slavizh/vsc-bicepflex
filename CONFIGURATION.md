@@ -2,11 +2,9 @@
 
 Use these options with the standalone VS Code formatter through individual
 `bicepFlex.*` settings in the Settings UI or User/Workspace Settings JSON.
-To migrate from the former `bicepFlex.options` object, move each entry to
-`bicepFlex.<optionName>` at the top level of your VS Code Settings JSON. The
-grouped setting has been removed. You may also use `.prettierrc.json` or
-another Prettier configuration file for project-specific settings. Neither
-configuration approach installs npm packages in the project.
+You may also use `.prettierrc.json` or another Prettier configuration file
+for project-specific settings. Neither configuration approach installs npm
+packages in the project.
 
 All settings apply to `.bicep` and `.bicepparam` where the syntax is valid.
 Options for resources, for example, have no effect on parameter files.
@@ -40,11 +38,9 @@ for project-specific settings in `.prettierrc.json`:
 }
 ```
 
-The bundled plugin is supplied by the extension; do not add a `plugins` entry
-just for it. Existing configurations with a `plugins` entry naming this package
-can still be used for VS Code formatting without installing that package.
-Only the bundled Bicep plugin runs for Bicep documents; other plugin names in
-project configuration do not load into this extension. Explicitly set
+The bundled Bicep plugin needs no `plugins` entry. Plugin names in project
+configuration do not load into this extension; only its bundled plugin runs
+for Bicep documents. Explicitly set
 `bicepFlex.*` options take precedence over project configuration and preset
 defaults. Unchanged settings do not override project configuration. An
 explicitly selected preset also takes precedence over project configuration
@@ -58,7 +54,7 @@ Choose a VS Code setting in User or Workspace Settings:
 
 | Preset        | Behavior                                                                                                                                |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `opinionated` | Current plugin defaults, unchanged                                                                                                      |
+| `opinionated` | Dependency-aware formatting with the default layout and ordering policies                                                               |
 | `minimal`     | Same layout defaults, but no declaration, resource/module property, decorator, nested-resource, import-member or type-member reordering |
 
 For example:
@@ -81,9 +77,6 @@ Set individual options to override the preset:
 
 Explicit options win, including values equal to ordinary defaults. Project
 file overrides apply unless the corresponding BicepFlex setting is set.
-The old npm-only shared configuration string
-`"@slavizh/prettier-plugin-bicep/presets/minimal"` is not available without
-installing the npm package; use the VS Code preset setting instead.
 
 `minimal` does not mean byte-for-byte preservation or parity with `bicep format`:
 whitespace, optional quotes and lambda parentheses still follow the normal
@@ -116,8 +109,8 @@ instead in User Settings or the project config.
 
 ## Ordering arrays
 
-The four priority settings accept **arrays of strings**, not comma-separated
-strings. First-listed items come first. Omitted sections/properties retain
+The four priority settings accept **arrays of strings**. First-listed items come
+first. Omitted sections/properties retain
 relative order after listed entries; safety constraints and dependencies still
 take priority over section preferences.
 
@@ -204,21 +197,6 @@ a decorator move with it. Names are case-sensitive; `sys.description` uses the
 Empty arrays, duplicates, whitespace-padded names and commas inside entries are
 errors. To disable sorting, use its boolean switch rather than an empty list.
 
-### Migrating from comma-separated settings
-
-Replace:
-
-```json
-{ "bicepResourcePropertyOrder": "name,location,*,properties" }
-```
-
-with:
-
-```json
-{ "bicepResourcePropertyOrder": ["name", "location", "*", "properties"] }
-```
-
-The same change applies to all four lists. No project files are silently migrated.
 Use individual `bicepFlex.*` settings in VS Code User Settings for machine-wide
 preferences, or the same property directly in a project `.prettierrc.json`.
 
@@ -404,7 +382,7 @@ Missing options get runtime defaults even without a schema. Regenerate and check
 the shipped schema/example with `npm run configuration:generate` and
 `npm run configuration:check`.
 
-## Troubleshooting upgrades and formatting failures
+## Troubleshooting formatting failures
 
 | Error                                                        | Action                                                                                                                                                                                         |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -422,9 +400,8 @@ the compiler diagnostic and its one-based line/column.
 Prettier's own option validation can reject bad values before the bridge is
 called; those errors remain standard Prettier errors.
 
-Protocol compatibility checks run in both directions: new JavaScript rejects
-legacy bridge output, and the new bridge gives cached legacy JavaScript a
-reload/reinstall message before attempting to deserialize its options.
+Protocol compatibility checks refuse mismatched JavaScript and native bridge
+builds with a reload/reinstall message before applying any output.
 
 Known pinned-printer limitation: Unicode line separators such as U+2028 inside
 comments can be changed by the native layout engine. The safety check refuses

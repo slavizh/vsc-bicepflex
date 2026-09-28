@@ -2,7 +2,7 @@
   "name": "bicepflex",
   "displayName": "BicepFlex",
   "description": "Standalone, configurable Bicep and Bicep parameters formatter backed by the Bicep compiler.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "publisher": "slavizh",
   "license": "MIT",
@@ -669,11 +669,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/slavizh/Prettier-Plugin-Bicep.git",
+    "url": "https://github.com/slavizh/vsc-bicepflex.git",
     "directory": "packages/vscode"
   },
-  "homepage": "https://github.com/slavizh/Prettier-Plugin-Bicep#readme",
+  "homepage": "https://github.com/slavizh/vsc-bicepflex#readme",
   "bugs": {
-    "url": "https://github.com/slavizh/Prettier-Plugin-Bicep/issues"
+    "url": "https://github.com/slavizh/vsc-bicepflex/issues"
   }
 }

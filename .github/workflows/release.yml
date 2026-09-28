@@ -1,4 +1,4 @@
-name: Release
+name: Marketplace
 
 on:
   workflow_dispatch:
@@ -7,7 +7,23 @@ permissions:
   contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require published release tag
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF -cne "refs/tags/v$version") { throw "Run Marketplace against the v$version tag." }
+          gh release view $env:GITHUB_REF_NAME --json tagName --jq .tagName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   verify:
+    needs: prepare
     uses: ./.github/workflows/ci.yml
   publish:
     needs: verify

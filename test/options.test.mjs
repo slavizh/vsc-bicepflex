@@ -62,7 +62,7 @@ test("array priorities reach the native bridge for all four order lists", async 
   assert.match(output, /module consumer[^\n]+\{\n  params:/);
 });
 
-test("legacy comma strings, empty lists, duplicate entries and unknown sections fail clearly", async () => {
+test("string priorities, empty lists, duplicate entries and unknown sections fail clearly", async () => {
   for (const value of [
     "name,properties",
     ["name,properties"],

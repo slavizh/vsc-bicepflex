@@ -30,12 +30,10 @@ In the VS Code Settings UI, Preset appears first when browsing the extension
 with an empty search box; frequently used layout and ordering options follow.
 Dropdown descriptions explain each available value. Searches may use VS Code's
 own ordering.
-Move any values from the former `bicepFlex.options` object to individual
-`bicepFlex.<optionName>` settings; the grouped setting has been removed.
-The extension uses its
-bundled Bicep plugin even if an existing configuration lists the npm plugin;
-no project npm install is necessary. Only trusted workspaces load project
-Prettier configuration. See the [full configuration reference](https://github.com/slavizh/Prettier-Plugin-Bicep/blob/main/CONFIGURATION.md).
+The extension always uses its bundled Bicep plugin; project plugin entries
+do not load into the extension, and no project npm install is necessary. Only
+trusted workspaces load project Prettier configuration. See the
+[full configuration reference](https://github.com/slavizh/vsc-bicepflex/blob/main/CONFIGURATION.md).
 
 Formatting is whole-document only and refuses invalid input or generated code
 that changes syntax, comments, or compiler diagnostics. The formatter uses

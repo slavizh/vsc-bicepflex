@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,6 +43,11 @@ jobs:
       - name: Verify locked compiler dependencies
         run: dotnet restore native/Bicep.Formatter/Bicep.Formatter.csproj --locked-mode
       - run: npm run check
+      - name: Measure production line and branch coverage
+        if: runner.os == 'Linux'
+        env:
+          BICEPFLEX_TEST_NO_SANDBOX: "1"
+        run: xvfb-run -a npm run test:coverage
       - run: npm run package --workspace=bicepflex
       - name: Download official grammar corpus
         if: runner.os == 'Linux'
@@ -57,6 +62,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           BICEPFLEX_TEST_PACKAGED: "1"
+          BICEPFLEX_TEST_NO_SANDBOX: "1"
         run: xvfb-run -a npm run test:host --workspace=bicepflex
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
@@ -69,3 +75,13 @@ jobs:
         with:
           name: compatibility-results
           path: artifacts/corpus-results.json
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux' && always()
+        with:
+          name: production-coverage
+          path: |
+            artifacts/coverage/summary.json
+            artifacts/coverage/native.xml
+            artifacts/coverage/engine/coverage-summary.json
+            artifacts/coverage/host/coverage-summary.json
+          if-no-files-found: warn

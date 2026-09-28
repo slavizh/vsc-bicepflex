@@ -12,6 +12,7 @@ await build({
   platform: "node",
   format: "esm",
   target: "node20",
+  sourcemap: true,
   external: ["vscode"],
 });
 await rm(resolve(destination, "bridge"), { recursive: true, force: true });
