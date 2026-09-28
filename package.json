@@ -32,12 +32,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/slavizh/Prettier-Plugin-Bicep.git"
+    "url": "https://github.com/slavizh/vsc-bicepflex.git"
   },
   "bugs": {
-    "url": "https://github.com/slavizh/Prettier-Plugin-Bicep/issues"
+    "url": "https://github.com/slavizh/vsc-bicepflex/issues"
   },
-  "homepage": "https://github.com/slavizh/Prettier-Plugin-Bicep#readme",
+  "homepage": "https://github.com/slavizh/vsc-bicepflex#readme",
   "keywords": [
     "prettier",
     "prettier-plugin",

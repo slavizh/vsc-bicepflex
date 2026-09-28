@@ -669,11 +669,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/slavizh/Prettier-Plugin-Bicep.git",
+    "url": "https://github.com/slavizh/vsc-bicepflex.git",
     "directory": "packages/vscode"
   },
-  "homepage": "https://github.com/slavizh/Prettier-Plugin-Bicep#readme",
+  "homepage": "https://github.com/slavizh/vsc-bicepflex#readme",
   "bugs": {
-    "url": "https://github.com/slavizh/Prettier-Plugin-Bicep/issues"
+    "url": "https://github.com/slavizh/vsc-bicepflex/issues"
   }
 }
