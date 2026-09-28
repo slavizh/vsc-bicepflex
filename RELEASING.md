@@ -3,7 +3,10 @@
 1. Verify ownership of the `slavizh` Visual Studio Marketplace publisher. Review
    the VSIX manifest, Bicep version, formatting rules, and all redistributed
    dependency licenses. Do not imply Microsoft or Prettier endorsement.
-2. Update the extension version and changelogs. Keep `dist/extension.mjs` and
+2. Update the version only in `packages/vscode/package.json` (for example,
+   `npm version 0.2.0 --workspace=bicepflex --no-git-tag-version`), and commit
+   the generated `package-lock.json` change. Update the changelog. Keep
+   `dist/extension.mjs` and
    `dist/bridge` from the same build. If the bridge contract changes, increment
    the protocol version in `src/bridge.ts` and `native/Bicep.Formatter/Program.cs`
    together. Updates to Azure.Bicep.Core require compiler-equivalence, corpus,
@@ -64,8 +67,7 @@ For WSL/SSH/containers, the runtime is required on the remote extension host.
 ## Publish
 
 After the pull request merges and CI on `main` succeeds, create a tag
-`v<extension-version>` on that commit and push it (for example, `v0.1.2`
-for extension version `0.1.2`). The **GitHub Release** workflow rejects tags
+`v<extension-version>` on that commit and push it. The **GitHub Release** workflow rejects tags
 that do not match `packages/vscode/package.json` or do not point to a commit
 on `main`. It reruns CI on the tagged commit, then creates a GitHub Release
 with **the VSIX that passed the packaged-host test** attached as an asset.
@@ -78,8 +80,9 @@ It checks that a GitHub Release already exists, reruns CI for the tag, and
 publishes its verified VSIX using the `VSCE_PAT` secret. For a manual upload
 with Marketplace credentials already configured:
 
-```console
-npm exec --workspace=bicepflex -- vsce publish --packagePath packages/vscode/bicepflex-0.1.2.vsix
+```powershell
+$version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+npm exec --workspace=bicepflex -- vsce publish --packagePath "packages/vscode/bicepflex-$version.vsix"
 ```
 
 Confirm the published version on the Marketplace. Never attempt to republish

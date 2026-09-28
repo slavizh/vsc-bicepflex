@@ -1,6 +1,5 @@
 {
   "name": "bicepflex-workspace",
-  "version": "0.1.2",
   "private": true,
   "description": "Source workspace for the standalone Bicep VS Code formatter and its compiler-backed Prettier engine.",
   "type": "module",
