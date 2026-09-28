@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-package
+          path: artifacts/marketplace
+      - name: Publish VS Code extension
+        shell: pwsh
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          $packages = @(Get-ChildItem artifacts/marketplace -Filter *.vsix)
+          if ($packages.Count -ne 1) { throw 'Expected exactly one verified VSIX.' }
+          npm exec --workspace=bicepflex -- vsce publish --packagePath $packages[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

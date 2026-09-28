@@ -1,0 +1,8 @@
+src/**
+test-host/**
+artifacts/**
+*.vsix
+tsconfig.json
+node_modules/**
+dist/**/*.map
+dist/**/*.pdb

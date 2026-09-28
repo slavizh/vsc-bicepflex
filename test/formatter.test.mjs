@@ -1,0 +1,506 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { resolve } from "node:path";
+import * as prettier from "prettier";
+import plugin from "../dist/index.js";
+
+const filepath = resolve("test", "fixtures", "main.bicep");
+const format = (source, options = {}) =>
+  prettier.format(source, {
+    plugins: [plugin],
+    filepath,
+    endOfLine: "lf",
+    ...options,
+  });
+const names = (source) =>
+  [
+    ...source.matchAll(
+      /^(?:var|resource|module|output|type|func|param)\s+(\w+)/gm,
+    ),
+  ].map((match) => match[1]);
+const resource = (name, body = "", existing = false) =>
+  `resource ${name} 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' ${existing ? "existing " : ""}= {\nname: '${name}'\n${existing ? "" : "location: 'westeurope'\n"}${body}\n}\n`;
+async function stable(source, options) {
+  const output = await format(source, options);
+  assert.equal(
+    await format(output, options),
+    output,
+    "formatting must be idempotent",
+  );
+  return output;
+}
+
+test("defaults preserve line-ending convention, use two spaces, final newline, and 180 columns", async () => {
+  const output = await prettier.format("output x object={a:1}\n", {
+    plugins: [plugin],
+    parser: "bicep",
+  });
+  assert.equal(output, "output x object = {\n  a: 1\n}\n");
+  const crlf = await prettier.format("output x object={a:1}\r\n", {
+    plugins: [plugin],
+    parser: "bicep",
+  });
+  assert.equal(crlf, "output x object = {\r\n  a: 1\r\n}\r\n");
+  assert.equal(plugin.defaultOptions.printWidth, 180);
+  assert.equal(plugin.defaultOptions.endOfLine, "auto");
+});
+
+test("objects expand, primitive arrays compact, and declarations are separated", async () => {
+  assert.equal(
+    await stable(
+      "param names array=[\n'a'\n'b'\n]\noutput value object={'names':names}\n",
+    ),
+    "param names array = ['a', 'b']\n\noutput value object = {\n  names: names\n}\n",
+  );
+});
+
+test("variables move immediately before first consumer", async () => {
+  const output = await stable(
+    "var appTags={env:'dev'}\n" +
+      resource("resourceA") +
+      resource("resourceB", "tags:appTags"),
+  );
+  assert.deepEqual(names(output), ["resourceA", "appTags", "resourceB"]);
+});
+
+test("consecutive named and wildcard imports form one compact block", async () => {
+  const output = await stable(
+    "import { Second } from './import-types.bicep'\n\nimport { First } from './import-types.bicep'\n\nimport * as types from './import-types.bicep'\nparam first First\nparam second Second\nparam other types.First\n",
+  );
+  assert.ok(
+    output.startsWith(
+      "import { Second } from './import-types.bicep'\nimport { First } from './import-types.bicep'\nimport * as types from './import-types.bicep'\n\nparam first First\n\nparam second Second\n",
+    ),
+  );
+});
+
+test("import blocks preserve inline comments and section headings", async () => {
+  const output = await stable(
+    "import { First } from './import-types.bicep' // First type\n\nimport { Second } from './import-types.bicep'\n\n// Separate imports\n\nimport * as types from './import-types.bicep'\nparam first First\nparam second Second\nparam other types.First\n",
+  );
+  assert.ok(output.includes("// First type\nimport { Second }"));
+  assert.ok(output.includes("\n\n// Separate imports\n\nimport *"));
+});
+
+test("preserve declaration spacing retains author blank lines between imports", async () => {
+  const output = await stable(
+    "import { First } from './import-types.bicep'\n\nimport { Second } from './import-types.bicep'\nparam first First\nparam second Second\n",
+    { bicepDeclarationSpacing: "preserve", bicepImportSpacing: "preserve" },
+  );
+  assert.ok(output.includes("'./import-types.bicep'\n\nimport { Second }"));
+});
+
+test("existing resource and variable dependency chain", async () => {
+  const output = await stable(
+    resource("resourceA", "tags:appTags") +
+      resource("existingResourceA", "", true) +
+      "var appTags={parentId:existingResourceA.id}\n" +
+      resource("resourceB"),
+  );
+  assert.deepEqual(names(output), [
+    "existingResourceA",
+    "appTags",
+    "resourceA",
+    "resourceB",
+  ]);
+});
+
+test("earliest ready declaration wins dependency ties", async () => {
+  const output = await stable(
+    resource("consumerA", "tags:{parent:dependencyC.id}") +
+      resource("unrelatedB") +
+      resource("dependencyC"),
+  );
+  assert.deepEqual(names(output), ["unrelatedB", "dependencyC", "consumerA"]);
+});
+
+test("resource/module order stays stable and direct output follows its dependency", async () => {
+  const output = await stable(
+    resource("first") +
+      "module consumer './consumer.bicep'={name:'consumer',params:{parentId:first.id}}\n" +
+      resource("second", "tags:{parent:first.id}") +
+      "output firstId string=first.id\n",
+  );
+  assert.deepEqual(names(output), ["first", "firstId", "consumer", "second"]);
+});
+
+test("output-only variables and their outputs go at the end", async () => {
+  const output = await stable(
+    "var accountId=account.id\noutput result string=accountId\n" +
+      resource("account") +
+      resource("nextResource"),
+  );
+  assert.deepEqual(names(output), [
+    "account",
+    "nextResource",
+    "accountId",
+    "result",
+  ]);
+});
+
+test("shared variables are emitted once before their first consumer", async () => {
+  const output = await stable(
+    resource("first", "tags:tags") +
+      resource("second", "tags:tags") +
+      "var tags={env:'dev'}\n",
+  );
+  assert.deepEqual(names(output), ["tags", "first", "second"]);
+});
+
+test("types follow all types that reference them", async () => {
+  const output = await stable(
+    "type typeC={name:string}\ntype typeA={primary:typeC}\ntype typeB={secondary:typeC}\nparam config typeA\n",
+  );
+  assert.deepEqual(names(output), ["typeA", "typeB", "typeC", "config"]);
+});
+
+test("recursive type components preserve source order", async () => {
+  const output = await stable(
+    "type A={child:B?}\ntype B={parent:A?}\nparam value A\n",
+  );
+  assert.deepEqual(names(output), ["A", "B", "value"]);
+});
+
+test("quoted type property keys are normalized safely", async () => {
+  const output = await stable(
+    "type Config={'name':string,'cost-center':string}\nparam config Config\n",
+  );
+  assert.match(output, /name: string\n  'cost-center': string/);
+});
+
+test("type member order is preserved", async () => {
+  const output = await stable(
+    "type Config={description:string?,name:string,enabled:bool?,location:string}\nparam config Config\n",
+  );
+  assert.match(
+    output,
+    /description: string\?\n  name: string\n  enabled: bool\?\n  location: string/,
+  );
+});
+
+test("called functions precede their callers", async () => {
+  const output = await stable(
+    "func caller(x string) string => helper(x)\nfunc helper(x string) string => toLower(x)\noutput name string=caller('HELLO')\n",
+  );
+  assert.deepEqual(names(output), ["helper", "caller", "name"]);
+});
+
+test("resource and module property priorities, with unlisted keys before properties/params", async () => {
+  const source =
+    "resource app 'Microsoft.Storage/storageAccounts@2023-05-01'={properties:{supportsHttpsTrafficOnly:true},kind:'StorageV2',sku:{name:'Standard_LRS'},tags:{env:'dev'},name:'examplestorage',location:'westeurope'}\n";
+  const output = await stable(source);
+  const positions = [
+    "name: 'examplestorage'",
+    "location:",
+    "tags:",
+    "kind:",
+    "sku:",
+    "properties:",
+  ].map((s) => output.indexOf(s));
+  assert.deepEqual(
+    [...positions].sort((a, b) => a - b),
+    positions,
+  );
+  const custom = await stable(source, {
+    bicepResourcePropertyOrder: ["name", "properties", "*", "location"],
+  });
+  assert.ok(custom.indexOf("properties:") < custom.indexOf("kind:"));
+  assert.ok(custom.indexOf("kind:") < custom.indexOf("location:"));
+});
+
+test("decorator ordering follows latest user priority", async () => {
+  const output = await stable(
+    "@maxLength(24)\n@minLength(3)\n@description('Name.')\nparam name string\n",
+  );
+  assert.equal(
+    output,
+    "@description('Name.')\n@minLength(3)\n@maxLength(24)\nparam name string\n",
+  );
+});
+
+test("description decorators are exempt from print width", async () => {
+  const description = "A deliberately long description. ".repeat(12);
+  const output = await stable(
+    `@description('${description}')\nparam name string\n`,
+    {
+      printWidth: 40,
+    },
+  );
+  assert.equal(output.split("\n")[0], `@description('${description}')`);
+});
+
+test("conditional header stays on the declaration line beyond print width", async () => {
+  const output = await stable(
+    "param deploy bool=true\nresource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'=if(deploy){name:'example',location:'westeurope'}\n",
+    { printWidth: 40 },
+  );
+  assert.match(output, /^resource identity .* = if \(deploy\) \{$/m);
+});
+
+test("single lambda parameter parentheses are removed", async () => {
+  const output = await stable(
+    "param names array=[]\noutput result array=map(names,(name)=>toLower(name))\n",
+  );
+  assert.match(output, /map\(names, name => toLower\(name\)\)/);
+});
+
+test("loop and lambda variables shadow globals without creating false dependencies", async () => {
+  const output = await stable(
+    "param name string='global'\noutput result array=[for name in ['a']:name]\n",
+  );
+  assert.match(output, /\[for name in \['a'\]: name\]/);
+});
+
+test("ignored declaration text is preserved but may move", async () => {
+  const ignored = "var appTags = { environment: 'dev', owner: 'platform' }";
+  const output = await stable(
+    "// prettier-ignore\n" +
+      ignored +
+      "\n" +
+      resource("unrelated") +
+      resource("application", "tags:appTags"),
+  );
+  assert.deepEqual(names(output), ["unrelated", "appTags", "application"]);
+  assert.ok(output.includes("// prettier-ignore\n" + ignored));
+});
+
+test("section heading is fixed and attached documentation moves with declaration", async () => {
+  const output = await stable(
+    "// First section\n\nparam first string='a'\n// Second section\n\n// Attached output description.\noutput result string=value\nvar value='b'\n",
+  );
+  assert.ok(
+    output.indexOf("param first") < output.indexOf("// Second section"),
+  );
+  assert.ok(output.indexOf("// Second section") < output.indexOf("var value"));
+  assert.ok(output.includes("// Attached output description.\noutput result"));
+});
+
+test("unused declarations are fixed ordering boundaries", async () => {
+  const output = await stable(
+    resource("before") +
+      "var unused='keep'\nparam location string='westeurope'\n" +
+      resource("after"),
+  );
+  assert.deepEqual(names(output), ["before", "unused", "location", "after"]);
+});
+
+test("trailing comments remain inline and declarations have one blank line", async () => {
+  const output = await stable(
+    "param a string='a' // A long inline comment that must not move.\nparam b string='b'\n",
+    { printWidth: 30 },
+  );
+  assert.match(
+    output,
+    /'a' \/\/ A long inline comment that must not move\.\n\nparam b/,
+  );
+});
+
+test("nested resources follow ordinary properties and remain inside their parent", async () => {
+  const output = await stable(
+    "resource parent 'Microsoft.Storage/storageAccounts@2023-05-01'={name:'examplestorage',resource child 'blobServices'={name:'default'},location:'westeurope',kind:'StorageV2',sku:{name:'Standard_LRS'}}\n",
+  );
+  assert.ok(output.indexOf("sku:") < output.indexOf("resource child"));
+  assert.match(output, /\n\n  resource child/);
+});
+
+test("references to nested resources depend on the containing top-level resource", async () => {
+  const output = await stable(
+    "output childId string=parent::child.id\nresource parent 'Microsoft.Storage/storageAccounts@2023-05-01'={name:'examplestorage',location:'westeurope',kind:'StorageV2',sku:{name:'Standard_LRS'},resource child 'blobServices'={name:'default'}}\n" +
+      resource("unrelated"),
+  );
+  assert.deepEqual(names(output), ["parent", "childId", "unrelated"]);
+});
+
+test("property blank lines are removed", async () => {
+  const output = await stable("output result object={\na:1\n\nb:2\n}\n");
+  assert.match(output, /a: 1\n  b: 2/);
+});
+
+test("comments separating decorated nested resources do not drift between passes", async () => {
+  await stable(
+    "resource parent 'Microsoft.Storage/storageAccounts@2023-05-01'={\nname:'examplestorage'\nlocation:'westeurope'\n// Location notes\n\n// Child notes\n@description('Child.')\nresource child 'blobServices'={name:'default'}\nkind:'StorageV2'\nsku:{name:'Standard_LRS'}\n}\n",
+  );
+});
+
+test("long calls and ternaries wrap at grammar-valid boundaries", async () => {
+  const output = await stable(
+    "param enabled bool=true\noutput choice string=enabled ? 'production-storage-account' : 'development-storage-account'\noutput name string=format('{0}-{1}-{2}', 'application-name', 'environment-name', 'region-name')\n",
+    { printWidth: 45 },
+  );
+  assert.match(
+    output,
+    /enabled\n  \? 'production-storage-account'\n  : 'development-storage-account'/,
+  );
+  assert.match(
+    output,
+    /format\(\n\s+'\{0\}-\{1\}-\{2\}',\n\s+'application-name',\n\s+'environment-name',\n\s+'region-name'\n\)/,
+  );
+});
+
+const resourceGroupLoopHeader =
+  "resource resourceGroupsRes 'Microsoft.Resources/resourceGroups@2025-04-01' = [for resourceGroup in resourceGroups: if (union(defaultResourceGroup, resourceGroup).create) {";
+const resourceGroupLoop =
+  "targetScope='subscription'\nparam resourceGroups array=[]\nparam tags object={}\nvar defaultResourceGroup={create:true,tags:{}}\n" +
+  resourceGroupLoopHeader +
+  "\nname:resourceGroup.name\nlocation:resourceGroup.location\ntags:union(tags,union(defaultResourceGroup,resourceGroup).tags)\nproperties:{}\n}]\n";
+
+test("conditional resource loop header fits on one line with a single body indent", async () => {
+  assert.ok(resourceGroupLoopHeader.length <= 180);
+  const output = await stable(resourceGroupLoop, { printWidth: 180 });
+  assert.ok(
+    output.includes(resourceGroupLoopHeader + "\n  name: resourceGroup.name\n"),
+  );
+  assert.ok(output.endsWith("  properties: {}\n}]\n"));
+});
+
+test("object loop wrapping changes at the exact header width", async () => {
+  const fits = await stable(resourceGroupLoop, {
+    printWidth: resourceGroupLoopHeader.length,
+  });
+  assert.ok(fits.includes(resourceGroupLoopHeader));
+  const wraps = await stable(resourceGroupLoop, {
+    printWidth: resourceGroupLoopHeader.length - 1,
+  });
+  assert.match(wraps, / = \[\n  for resourceGroup/);
+  assert.match(wraps, /\n    name: resourceGroup\.name\n/);
+});
+
+test("module loops use compact headers and close brackets together", async () => {
+  const output = await stable(
+    "param ids array=[]\nmodule consumers './consumer.bicep'=[for (id,i) in ids:if(!empty(id)){name:'consumer-${i}',params:{parentId:id}}]\n",
+  );
+  assert.match(
+    output,
+    / = \[for \(id, i\) in ids: if \(!empty\(id\)\) \{\n  name:/,
+  );
+  assert.ok(output.endsWith("  }\n}]\n"));
+});
+
+test("nested object loops compact consistently with tabs and spaces", async () => {
+  const source =
+    "output items array=[for x in ['one']:{nested:[for y in ['two']:{value:'${x}-${y}'}]}]\n";
+  for (const settings of [
+    {},
+    { tabWidth: 4 },
+    { useTabs: true, tabWidth: 4 },
+  ]) {
+    const output = await stable(source, settings);
+    const indent = settings.useTabs ? "\t" : " ".repeat(settings.tabWidth ?? 2);
+    assert.ok(output.includes("output items array = [for x in ['one']: {\n"));
+    assert.ok(
+      output.includes(
+        `${indent}nested: [for y in ['two']: {\n${indent}${indent}value:`,
+      ),
+    );
+    assert.ok(output.endsWith(`${indent}}]\n}]\n`));
+  }
+});
+
+test("loop indentation preserves multiline literals, comments, and ignored declarations", async () => {
+  const literal = "'''\n    significant indentation\n  more content\n'''";
+  const comment = "/* first\n    significant comment indentation\n  last */";
+  const source = `output items array=[for x in ['one']:{\n${comment}\nvalue:${literal}\n}]\n`;
+  const output = await stable(source);
+  assert.ok(output.includes(literal));
+  assert.ok(output.includes(comment));
+  const ignored = "// prettier-ignore\n" + source;
+  assert.equal(await stable(ignored), ignored);
+});
+
+test("comments between loop brackets and the body prevent unsafe compaction", async () => {
+  const output = await stable(
+    "output items array=[\n// Keep this comment\nfor x in ['one']:{value:x}\n// Keep the closing comment\n]\n",
+  );
+  assert.match(output, /\[\n  \/\/ Keep this comment\n/);
+  assert.match(output, /\/\/ Keep the closing comment\n\]/);
+});
+
+test("diagnostic regions and next-line suppression retain their effect", async () => {
+  const source =
+    "#disable-diagnostics no-unused-vars\nvar ignored='one'\n#restore-diagnostics no-unused-vars\n#disable-next-line no-unused-params\nparam unused string\noutput result string='two'\n";
+  const output = await stable(source);
+  assert.ok(
+    output.includes("#disable-next-line no-unused-params\nparam unused"),
+  );
+  assert.ok(
+    output.indexOf("#disable-diagnostics") < output.indexOf("var ignored"),
+  );
+  assert.ok(
+    output.indexOf("var ignored") < output.indexOf("#restore-diagnostics"),
+  );
+});
+
+test("multiline string contents, escapes, and interpolation are preserved", async () => {
+  const source =
+    "param name string='world'\noutput text string='''\n  hello  \n\n    world\n'''\noutput escaped string='hello ${name}, \\'quoted\\''\n";
+  const output = await stable(source);
+  assert.ok(output.includes("'''\n  hello  \n\n    world\n'''"));
+  assert.ok(output.includes("'hello ${name}, \\'quoted\\''"));
+});
+
+test("UTF-8 comments and string contents survive the native bridge exactly", async () => {
+  const text =
+    "// \u2500\u2500 \u65e5\u672c\u8a9e \ud83d\ude80\noutput greeting string = '\u0417\u0434\u0440\u0430\u0432\u0435\u0439, \u4e16\u754c'\n";
+  assert.equal(await stable(text), text);
+});
+
+test("optional leading union separator is normalized without changing its type", async () => {
+  const output = await stable("type Single = | 'alone'\nparam value Single\n");
+  assert.match(output, /type Single = 'alone'/);
+});
+
+test("parameter file variables precede first use without sorting assignments", async () => {
+  const output = await stable(
+    "using none\nvar prefix='dev'\nparam location='westeurope'\nparam name='${prefix}storage'\n",
+    {
+      filepath: resolve("test", "fixtures", "main.bicepparam"),
+    },
+  );
+  assert.deepEqual(names(output), ["location", "prefix", "name"]);
+});
+
+test("explicit parameter parser works without a parameter-file extension", async () => {
+  const output = await stable("using none\nparam name='example'\n", {
+    filepath: resolve("test", "fixtures", "Untitled-1"),
+    parser: "bicepparam",
+  });
+  assert.equal(output, "using none\n\nparam name = 'example'\n");
+});
+
+test("sorting and layout options can be disabled or changed", async () => {
+  const output = await stable(
+    "output result object=tags\nvar tags={'env':'dev'}\n",
+    {
+      bicepSortDeclarations: false,
+      bicepObjectLayout: "auto",
+      bicepQuoteProperties: "preserve",
+      bicepDeclarationSpacing: "compact",
+    },
+  );
+  assert.deepEqual(names(output), ["result", "tags"]);
+  assert.ok(output.includes("{ 'env': 'dev' }"));
+  assert.ok(!output.includes("\n\n"));
+});
+
+test("syntax errors fail explicitly without returning output", async () => {
+  await assert.rejects(
+    format("resource broken = {"),
+    /Bicep formatting refused: BCP/,
+  );
+});
+
+test("invalid configuration fails explicitly", async () => {
+  await assert.rejects(
+    format("param name string\n", {
+      bicepDecoratorOrder: ["description", "description"],
+    }),
+    /must not contain duplicates/,
+  );
+});
+
+test("range formatting is rejected rather than reordering part of a file", async () => {
+  await assert.rejects(
+    format("param a string\nparam b string\n", { rangeStart: 3, rangeEnd: 10 }),
+    /whole-document formatting only/,
+  );
+});

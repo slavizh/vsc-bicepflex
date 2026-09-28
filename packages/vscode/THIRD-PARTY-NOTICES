@@ -1,0 +1,15 @@
+The standalone VS Code extension bundles Prettier 3 and Azure.Bicep.Core
+0.47.16 with their transitive dependencies. The Prettier license is included
+in licenses/PRETTIER-LICENSE.txt, and the Bicep license is included in
+licenses/BICEP-LICENSE.txt inside the VSIX.
+Prettier's transitive dependency notices ship in
+licenses/PRETTIER-THIRD-PARTY-NOTICES.md.
+Bicep is Copyright (c) Microsoft Corporation and licensed under the MIT License:
+https://github.com/Azure/bicep/blob/v0.47.16/LICENSE
+
+The Bicep compiler is used as a dependency; this project is not affiliated with
+or endorsed by Microsoft, GitHub, or the Prettier project.
+
+Dependency versions are recorded in native/Bicep.Formatter/packages.lock.json
+and package-lock.json in the source repository. Release builds include a
+dependency license inventory in dist/bridge/THIRD-PARTY-LICENSES.txt.

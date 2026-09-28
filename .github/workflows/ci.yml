@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Install pinned Bicep CLI
+        shell: pwsh
+        run: |
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+          $os = if ($IsWindows) { 'win' } elseif ($IsMacOS) { 'osx' } else { 'linux' }
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          $directory = Join-Path $env:RUNNER_TEMP 'bicep-cli'
+          New-Item -ItemType Directory -Force $directory | Out-Null
+          $binary = Join-Path $directory "bicep$suffix"
+          Invoke-WebRequest "https://github.com/Azure/bicep/releases/download/v0.47.16/bicep-$os-$arch$suffix" -OutFile $binary
+          if (!$IsWindows) { & chmod +x $binary }
+          $directory | Out-File -FilePath $env:GITHUB_PATH -Append
+      - run: npm ci
+      - name: Verify locked compiler dependencies
+        run: dotnet restore native/Bicep.Formatter/Bicep.Formatter.csproj --locked-mode
+      - run: npm run check
+      - run: npm run package --workspace=bicepflex
+      - name: Download official grammar corpus
+        if: runner.os == 'Linux'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/upstream | Out-Null
+          Invoke-WebRequest 'https://github.com/Azure/bicep/archive/refs/tags/v0.47.16.tar.gz' -OutFile artifacts/upstream/bicep.tar.gz
+          tar -xf artifacts/upstream/bicep.tar.gz -C artifacts/upstream bicep-0.47.16/src/Bicep.Core.Samples/Files
+      - if: runner.os == 'Linux'
+        run: npm run test:corpus
+      - name: Standalone VSIX integration
+        if: runner.os == 'Linux'
+        env:
+          BICEPFLEX_TEST_PACKAGED: "1"
+        run: xvfb-run -a npm run test:host --workspace=bicepflex
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: marketplace-package
+          path: packages/vscode/*.vsix
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux' && always()
+        with:
+          name: compatibility-results
+          path: artifacts/corpus-results.json

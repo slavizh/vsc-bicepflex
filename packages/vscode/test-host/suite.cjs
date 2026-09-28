@@ -1,0 +1,316 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const vscode = require("vscode");
+
+async function run() {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  assert.ok(folder);
+  const extension = vscode.extensions.getExtension("slavizh.bicepflex");
+  assert.ok(extension);
+  await extension.activate();
+  const bicepExtension = process.env.BICEPFLEX_BICEP_VSIX
+    ? vscode.extensions.getExtension("ms-azuretools.vscode-bicep")
+    : undefined;
+  if (process.env.BICEPFLEX_BICEP_VSIX) {
+    assert.ok(bicepExtension, "The official Bicep extension must be installed");
+    await bicepExtension.activate();
+  }
+  assert.equal(vscode.workspace.isTrusted, true);
+  assert.equal(
+    await fs.stat(path.join(folder.uri.fsPath, "node_modules")).then(
+      () => true,
+      () => false,
+    ),
+    false,
+  );
+  const outcomes = [];
+  for (const [file, language, original, expected] of [
+    [
+      "sample.bicep",
+      "bicep",
+      "output greeting string='hello'\n",
+      "output greeting string = 'hello'\n",
+    ],
+    [
+      "sample.bicepparam",
+      "bicep-params",
+      "using none\r\nparam greeting='hello'\r\n",
+      "using none\r\n\r\nparam greeting = 'hello'\r\n",
+    ],
+  ]) {
+    const document = await vscode.workspace.openTextDocument(
+      vscode.Uri.joinPath(folder.uri, file),
+    );
+    await vscode.window.showTextDocument(document);
+    assert.equal(document.languageId, language);
+    assert.equal(document.getText(), original);
+    assert.equal(
+      vscode.workspace
+        .getConfiguration("editor", document)
+        .get("defaultFormatter"),
+      extension.id,
+    );
+    await vscode.commands.executeCommand("editor.action.formatDocument");
+    assert.equal(document.getText(), expected);
+    outcomes.push({ file, language, formatted: true });
+  }
+  const config = vscode.workspace.getConfiguration("bicepFlex");
+  assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
+  assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
+  assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
+  await config.update("bicepTabWidth", 4, vscode.ConfigurationTarget.Workspace);
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "settings.bicep"),
+    "output value object={enabled:true}\n",
+  );
+  const doc = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "settings.bicep"),
+  );
+  await vscode.window.showTextDocument(doc);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(doc.getText(), /\n {4}enabled: true\n/);
+  await config.update("bicepTabWidth", 6, vscode.ConfigurationTarget.Workspace);
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "individual.bicep"),
+    "output value object={enabled:true}\n",
+  );
+  const individual = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "individual.bicep"),
+  );
+  await vscode.window.showTextDocument(individual);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(individual.getText(), /\n {6}enabled: true\n/);
+  const settingsDocument = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, ".vscode", "settings.json"),
+  );
+  await vscode.window.showTextDocument(settingsDocument);
+  const settingPosition = settingsDocument.positionAt(
+    settingsDocument.getText().indexOf('"bicepFlex.bicepTabWidth"') + 2,
+  );
+  let hoverText = "";
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const hovers = await vscode.commands.executeCommand(
+      "vscode.executeHoverProvider",
+      settingsDocument.uri,
+      settingPosition,
+    );
+    hoverText =
+      hovers
+        ?.flatMap((hover) =>
+          hover.contents.map((content) =>
+            typeof content === "string" ? content : content.value,
+          ),
+        )
+        .join("\n") ?? "";
+    if (hoverText.includes("Default: 2 in the Settings UI")) break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  assert.match(
+    hoverText.replaceAll("\\", ""),
+    /Default: 2 in the Settings UI; when unset, inherits tabWidth/,
+  );
+  const rootPosition = settingsDocument.positionAt(
+    settingsDocument.getText().indexOf("{") + 1,
+  );
+  let settingDescription = "";
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const result = await vscode.commands.executeCommand(
+      "vscode.executeCompletionItemProvider",
+      settingsDocument.uri,
+      rootPosition,
+    );
+    const suggestion = result?.items.find(
+      (item) =>
+        (typeof item.label === "string" ? item.label : item.label.label) ===
+        "bicepFlex.bicepConditionalHeader",
+    );
+    settingDescription =
+      typeof suggestion?.documentation === "string"
+        ? suggestion.documentation
+        : (suggestion?.documentation?.value ?? "");
+    if (settingDescription.includes("Default:")) break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  assert.match(settingDescription, /Default:.*inline/);
+  assert.match(settingDescription, /next-line.*always put if on the next line/);
+  await config.update(
+    "bicepTabWidth",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  const configured = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "config-case", "configured.bicep"),
+  );
+  await vscode.window.showTextDocument(configured);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(configured.getText(), /\n {3}enabled: true\n/);
+  await config.update("bicepTabWidth", 6, vscode.ConfigurationTarget.Workspace);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(configured.getText(), /\n {6}enabled: true\n/);
+  await config.update(
+    "bicepTabWidth",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(configured.getText(), /\n {3}enabled: true\n/);
+  const schemaDocument = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "config-case", ".prettierrc.json"),
+  );
+  await vscode.window.showTextDocument(schemaDocument);
+  assert.equal(
+    vscode.workspace.getConfiguration("json").get("schemaDownload.enable"),
+    false,
+  );
+  const position = schemaDocument.positionAt(
+    schemaDocument.getText().indexOf('"spaces"') + 1,
+  );
+  let completions = [];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const result = await vscode.commands.executeCommand(
+      "vscode.executeCompletionItemProvider",
+      schemaDocument.uri,
+      position,
+    );
+    completions =
+      result?.items.map((item) =>
+        typeof item.label === "string" ? item.label : item.label.label,
+      ) ?? [];
+    if (completions.some((label) => label.includes("tabs"))) break;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  assert.ok(
+    completions.some((label) => label.includes("tabs")),
+    "Offline option completion from VSIX schema",
+  );
+  await config.update(
+    "preset",
+    "minimal",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "config-case", "minimal.bicep"),
+    "output result string = 'done'\nparam unused string\n",
+  );
+  const projectPreset = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "config-case", "minimal.bicep"),
+  );
+  await vscode.window.showTextDocument(projectPreset);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.ok(
+    projectPreset.getText().startsWith("output result"),
+    "Explicit BicepFlex preset overrides project ordering",
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "minimal.bicep"),
+    "output result string = 'done'\nparam unused string\n",
+  );
+  const minimal = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "minimal.bicep"),
+  );
+  await vscode.window.showTextDocument(minimal);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.ok(
+    minimal.getText().startsWith("output result"),
+    "Minimal preset retains source declaration order",
+  );
+  await config.update(
+    "bicepSortDeclarations",
+    true,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.ok(
+    minimal.getText().startsWith("param unused"),
+    "Explicit individual setting overrides the minimal preset even at its default value",
+  );
+  await config.update(
+    "bicepSortDeclarations",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await config.update(
+    "preset",
+    "opinionated",
+    vscode.ConfigurationTarget.Workspace,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "invalid.bicep"),
+    "output result string =\n",
+  );
+  const invalid = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "invalid.bicep"),
+  );
+  await vscode.window.showTextDocument(invalid);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(invalid.getText(), "output result string =\n");
+  if (bicepExtension) {
+    let found = false;
+    for (let attempt = 0; attempt < 90; attempt++) {
+      found = vscode.languages
+        .getDiagnostics(invalid.uri)
+        .some(
+          (diagnostic) =>
+            diagnostic.severity === vscode.DiagnosticSeverity.Error,
+        );
+      if (found) break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    assert.ok(found, "The official Bicep server diagnoses the invalid probe");
+    for (const file of ["sample.bicep", "sample.bicepparam"]) {
+      assert.equal(
+        vscode.languages
+          .getDiagnostics(vscode.Uri.joinPath(folder.uri, file))
+          .filter(
+            (diagnostic) =>
+              diagnostic.severity === vscode.DiagnosticSeverity.Error,
+          ).length,
+        0,
+        `${file} has no language-server errors after formatting`,
+      );
+    }
+  }
+  await fs.mkdir(path.join(folder.uri.fsPath, "unknown-case"), {
+    recursive: true,
+  });
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "unknown-case", ".prettierrc.json"),
+    JSON.stringify({ bicepUnrecognizedSetting: true }),
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "unknown-case", "unknown.bicep"),
+    "output result string='hi'\n",
+  );
+  const unformatted = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "unknown-case", "unknown.bicep"),
+  );
+  await vscode.window.showTextDocument(unformatted);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(unformatted.getText(), "output result string='hi'\n");
+  assert.equal(
+    await fs.stat(path.join(folder.uri.fsPath, "node_modules")).then(
+      () => true,
+      () => false,
+    ),
+    false,
+  );
+  await fs.writeFile(
+    process.env.BICEPFLEX_HOST_EVIDENCE,
+    JSON.stringify({
+      success: true,
+      extension: extension.id,
+      withoutProjectNpm: true,
+      userOptions: true,
+      projectConfigWithoutPluginInstall: true,
+      minimalPreset: true,
+      invalidSyntaxRefused: true,
+      unknownOptionsRefused: true,
+      offlineSchemaCompletion: true,
+      bicepExtensionActive: bicepExtension?.isActive ?? false,
+      outcomes,
+    }),
+  );
+}
+
+module.exports = { run };

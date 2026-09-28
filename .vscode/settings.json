@@ -1,0 +1,8 @@
+{
+  "[bicep]": {
+    "editor.defaultFormatter": "slavizh.bicepflex"
+  },
+  "[bicep-params]": {
+    "editor.defaultFormatter": "slavizh.bicepflex"
+  }
+}

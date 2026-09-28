@@ -1,0 +1,607 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Prettier Bicep configuration",
+  "description": "Bicep plugin options plus standard layout settings. Other Prettier/plugin settings are allowed.",
+  "$ref": "#/$defs/configuration",
+  "$defs": {
+    "configuration": {
+      "type": "object",
+      "properties": {
+        "bicepPrintWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647,
+          "description": "Bicep-only wrapping target. When omitted, inherit printWidth. Default: 180 in the Settings UI; when unset, inherits printWidth."
+        },
+        "bicepTabWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Bicep-only indentation width. When omitted, inherit tabWidth. Default: 2 in the Settings UI; when unset, inherits tabWidth."
+        },
+        "bicepIndentStyle": {
+          "type": "string",
+          "enum": [
+            "inherit",
+            "spaces",
+            "tabs"
+          ],
+          "default": "inherit",
+          "description": "Bicep-only indentation style; inherit follows useTabs. Choices: \"inherit\" — follow useTabs; \"spaces\" — indent with spaces; \"tabs\" — indent with tabs. Default: \"inherit\".",
+          "enumDescriptions": [
+            "follow useTabs",
+            "indent with spaces",
+            "indent with tabs"
+          ]
+        },
+        "bicepSortDeclarations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Apply section and dependency-aware declaration ordering. Default: true."
+        },
+        "bicepDeclarationOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\*|[A-Za-z_][A-Za-z0-9_]*)$",
+            "enum": [
+              "metadata",
+              "extension",
+              "targetScope",
+              "import",
+              "type",
+              "param",
+              "func",
+              "var",
+              "resource",
+              "module",
+              "output",
+              "using",
+              "extends",
+              "test",
+              "assert"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            "metadata",
+            "extension",
+            "targetScope",
+            "import",
+            "type",
+            "param",
+            "func",
+            "var",
+            "resource",
+            "module",
+            "output"
+          ],
+          "description": "Declaration section priorities, listed from first to last. Default: [\"metadata\",\"extension\",\"targetScope\",\"import\",\"type\",\"param\",\"func\",\"var\",\"resource\",\"module\",\"output\"]."
+        },
+        "bicepSortProperties": {
+          "type": "boolean",
+          "default": true,
+          "description": "Order immediate resource and module body properties. Default: true."
+        },
+        "bicepResourcePropertyOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\*|[A-Za-z_][A-Za-z0-9_]*)$"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            "name",
+            "parent",
+            "scope",
+            "dependsOn",
+            "location",
+            "tags",
+            "identity",
+            "kind",
+            "sku",
+            "zones",
+            "plan",
+            "*",
+            "properties"
+          ],
+          "description": "Resource property priorities; * marks unlisted properties. Default: [\"name\",\"parent\",\"scope\",\"dependsOn\",\"location\",\"tags\",\"identity\",\"kind\",\"sku\",\"zones\",\"plan\",\"*\",\"properties\"]."
+        },
+        "bicepModulePropertyOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\*|[A-Za-z_][A-Za-z0-9_]*)$"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            "name",
+            "scope",
+            "dependsOn",
+            "*",
+            "params"
+          ],
+          "description": "Module property priorities; * marks unlisted properties. Default: [\"name\",\"scope\",\"dependsOn\",\"*\",\"params\"]."
+        },
+        "bicepSortDecorators": {
+          "type": "boolean",
+          "default": true,
+          "description": "Order recognized built-in decorators. Default: true."
+        },
+        "bicepDecoratorOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\*|[A-Za-z_][A-Za-z0-9_]*)$",
+            "enum": [
+              "export",
+              "sealed",
+              "description",
+              "metadata",
+              "discriminator",
+              "secure",
+              "allowed",
+              "minLength",
+              "maxLength",
+              "minValue",
+              "maxValue",
+              "batchSize"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            "export",
+            "sealed",
+            "description",
+            "metadata",
+            "discriminator",
+            "secure",
+            "allowed",
+            "minLength",
+            "maxLength",
+            "minValue",
+            "maxValue",
+            "batchSize"
+          ],
+          "description": "Built-in decorator priorities. Default: [\"export\",\"sealed\",\"description\",\"metadata\",\"discriminator\",\"secure\",\"allowed\",\"minLength\",\"maxLength\",\"minValue\",\"maxValue\",\"batchSize\"]."
+        },
+        "bicepObjectLayout": {
+          "type": "string",
+          "enum": [
+            "multiline",
+            "auto"
+          ],
+          "default": "multiline",
+          "description": "Layout of nonempty objects and object types. Choices: \"multiline\" — expand nonempty objects and object types; \"auto\" — keep compact source objects on one line when they fit. Default: \"multiline\".",
+          "enumDescriptions": [
+            "expand nonempty objects and object types",
+            "keep compact source objects on one line when they fit"
+          ]
+        },
+        "bicepArrayLayout": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "multiline",
+            "preserve"
+          ],
+          "default": "compact",
+          "description": "Layout of arrays containing only primitive literals. Choices: \"compact\" — fit arrays of primitive literals on one line; \"multiline\" — expand arrays of primitive literals; \"preserve\" — retain the source layout when width permits. Default: \"compact\".",
+          "enumDescriptions": [
+            "fit arrays of primitive literals on one line",
+            "expand arrays of primitive literals",
+            "retain the source layout when width permits"
+          ]
+        },
+        "bicepDeclarationSpacing": {
+          "type": "string",
+          "enum": [
+            "separate",
+            "compact",
+            "preserve"
+          ],
+          "default": "separate",
+          "description": "Spacing between declarations. Choices: \"separate\" — insert one blank line between declarations; \"compact\" — remove blank lines between declarations; \"preserve\" — retain author spacing where safe. Default: \"separate\".",
+          "enumDescriptions": [
+            "insert one blank line between declarations",
+            "remove blank lines between declarations",
+            "retain author spacing where safe"
+          ]
+        },
+        "bicepPropertyBlankLines": {
+          "type": "boolean",
+          "default": false,
+          "description": "Preserve author blank lines between object properties. Default: false."
+        },
+        "bicepTypeOrder": {
+          "type": "string",
+          "enum": [
+            "dependents-first",
+            "dependencies-first",
+            "preserve"
+          ],
+          "default": "dependents-first",
+          "description": "Order types relative to their referenced types. Choices: \"dependents-first\" — put referencing types first; \"dependencies-first\" — put referenced types first; \"preserve\" — retain source order within the type section. Default: \"dependents-first\".",
+          "enumDescriptions": [
+            "put referencing types first",
+            "put referenced types first",
+            "retain source order within the type section"
+          ]
+        },
+        "bicepFunctionOrder": {
+          "type": "string",
+          "enum": [
+            "dependencies-first",
+            "dependents-first",
+            "preserve"
+          ],
+          "default": "dependencies-first",
+          "description": "Order functions relative to called functions. Choices: \"dependencies-first\" — put called functions before callers; \"dependents-first\" — put callers before called functions; \"preserve\" — retain source order within the function section. Default: \"dependencies-first\".",
+          "enumDescriptions": [
+            "put called functions before callers",
+            "put callers before called functions",
+            "retain source order within the function section"
+          ]
+        },
+        "bicepVariablePlacement": {
+          "type": "string",
+          "enum": [
+            "first-use",
+            "section"
+          ],
+          "default": "first-use",
+          "description": "Place variables before their first consumer or in the variable section. Choices: \"first-use\" — place used variables before their first consumer; \"section\" — keep variables in the configured variable section. Default: \"first-use\".",
+          "enumDescriptions": [
+            "place used variables before their first consumer",
+            "keep variables in the configured variable section"
+          ]
+        },
+        "bicepExistingResourcePlacement": {
+          "type": "string",
+          "enum": [
+            "first-use",
+            "preserve"
+          ],
+          "default": "first-use",
+          "description": "Place existing resources before first use or retain their sequence position. Choices: \"first-use\" — place used existing resources before first use; \"preserve\" — retain their position in dependency-safe resource order. Default: \"first-use\".",
+          "enumDescriptions": [
+            "place used existing resources before first use",
+            "retain their position in dependency-safe resource order"
+          ]
+        },
+        "bicepOutputPlacement": {
+          "type": "string",
+          "enum": [
+            "dependency",
+            "end"
+          ],
+          "default": "dependency",
+          "description": "Place direct resource/module outputs after their dependencies or at the end. Choices: \"dependency\" — place resource/module outputs after their dependencies; \"end\" — leave outputs in the configured output section. Default: \"dependency\".",
+          "enumDescriptions": [
+            "place resource/module outputs after their dependencies",
+            "leave outputs in the configured output section"
+          ]
+        },
+        "bicepOutputOnlyVariables": {
+          "type": "string",
+          "enum": [
+            "end",
+            "dependency"
+          ],
+          "default": "end",
+          "description": "Place output-only variables and their outputs at the end or by dependency. Choices: \"end\" — keep output-only variables with outputs at the end; \"dependency\" — allow placement next to their dependencies. Default: \"end\".",
+          "enumDescriptions": [
+            "keep output-only variables with outputs at the end",
+            "allow placement next to their dependencies"
+          ]
+        },
+        "bicepNestedResources": {
+          "type": "string",
+          "enum": [
+            "last",
+            "preserve"
+          ],
+          "default": "last",
+          "description": "Place nested resource declarations after properties or preserve their positions. Choices: \"last\" — place nested resources after ordinary properties; \"preserve\" — keep them as boundaries between property sections. Default: \"last\".",
+          "enumDescriptions": [
+            "place nested resources after ordinary properties",
+            "keep them as boundaries between property sections"
+          ]
+        },
+        "bicepQuoteProperties": {
+          "type": "string",
+          "enum": [
+            "as-needed",
+            "preserve"
+          ],
+          "default": "as-needed",
+          "description": "Quoting of plain identifier property names. Choices: \"as-needed\" — remove optional quotes around identifier keys; \"preserve\" — retain source quoting. Default: \"as-needed\".",
+          "enumDescriptions": [
+            "remove optional quotes around identifier keys",
+            "retain source quoting"
+          ]
+        },
+        "bicepLambdaParentheses": {
+          "type": "string",
+          "enum": [
+            "avoid",
+            "always",
+            "preserve"
+          ],
+          "default": "avoid",
+          "description": "Parentheses for single-parameter lambdas. Choices: \"avoid\" — omit optional parentheses around one lambda parameter; \"always\" — add parentheses around one lambda parameter; \"preserve\" — retain the source choice. Default: \"avoid\".",
+          "enumDescriptions": [
+            "omit optional parentheses around one lambda parameter",
+            "add parentheses around one lambda parameter",
+            "retain the source choice"
+          ]
+        },
+        "bicepDescriptionWidth": {
+          "type": "string",
+          "enum": [
+            "ignore",
+            "wrap"
+          ],
+          "default": "ignore",
+          "description": "Whether description decorators respect the width target. Choices: \"ignore\" — leave descriptions inline regardless of width; \"wrap\" — wrap long description calls without reflowing their strings. Default: \"ignore\".",
+          "enumDescriptions": [
+            "leave descriptions inline regardless of width",
+            "wrap long description calls without reflowing their strings"
+          ]
+        },
+        "bicepDependencyOrder": {
+          "type": "string",
+          "enum": [
+            "ready-first",
+            "dependencies-first"
+          ],
+          "default": "ready-first",
+          "description": "Resolve dependency ties by choosing the earliest ready declaration or pulling dependencies before the earliest consumer. Choices: \"ready-first\" — choose the earliest currently ready declaration; \"dependencies-first\" — pull prerequisites before the earliest consumer. Default: \"ready-first\".",
+          "enumDescriptions": [
+            "choose the earliest currently ready declaration",
+            "pull prerequisites before the earliest consumer"
+          ]
+        },
+        "bicepUnusedDeclarations": {
+          "type": "string",
+          "enum": [
+            "boundary",
+            "section"
+          ],
+          "default": "boundary",
+          "description": "Keep unused variables/existing resources fixed or allow section ordering. Choices: \"boundary\" — keep unused variables and existing resources in place; \"section\" — allow them to move within their sections. Default: \"boundary\".",
+          "enumDescriptions": [
+            "keep unused variables and existing resources in place",
+            "allow them to move within their sections"
+          ]
+        },
+        "bicepSectionComments": {
+          "type": "string",
+          "enum": [
+            "boundary",
+            "attached"
+          ],
+          "default": "boundary",
+          "description": "Keep blank-line-separated headings fixed or move them with the following declaration. Choices: \"boundary\" — keep blank-line-separated headings in place; \"attached\" — move headings with the next declaration. Default: \"boundary\".",
+          "enumDescriptions": [
+            "keep blank-line-separated headings in place",
+            "move headings with the next declaration"
+          ]
+        },
+        "bicepIgnoredDeclarations": {
+          "type": "string",
+          "enum": [
+            "move",
+            "boundary"
+          ],
+          "default": "move",
+          "description": "Allow ignored declarations to move without changing their text, or fix their position. Choices: \"move\" — allow ignored declarations to move without changing their text; \"boundary\" — keep ignored declarations in place. Default: \"move\".",
+          "enumDescriptions": [
+            "allow ignored declarations to move without changing their text",
+            "keep ignored declarations in place"
+          ]
+        },
+        "bicepResourceModuleOrder": {
+          "type": "string",
+          "enum": [
+            "combined",
+            "separate"
+          ],
+          "default": "combined",
+          "description": "Combine resources/modules into one section or use their separate declaration priorities. Choices: \"combined\" — place resources and modules in one section; \"separate\" — respect their separate section priorities. Default: \"combined\".",
+          "enumDescriptions": [
+            "place resources and modules in one section",
+            "respect their separate section priorities"
+          ]
+        },
+        "bicepImportSpacing": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "separate",
+            "preserve",
+            "inherit"
+          ],
+          "default": "compact",
+          "description": "Spacing between consecutive imports; inherit follows declaration spacing. Choices: \"compact\" — remove blank lines between imports; \"separate\" — insert a blank line between imports; \"preserve\" — retain author spacing; \"inherit\" — follow declaration spacing. Default: \"compact\".",
+          "enumDescriptions": [
+            "remove blank lines between imports",
+            "insert a blank line between imports",
+            "retain author spacing",
+            "follow declaration spacing"
+          ]
+        },
+        "bicepUnionLayout": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "multiline"
+          ],
+          "default": "auto",
+          "description": "Keep short unions inline and wrap to width, or put every union member on its own line. Choices: \"auto\" — keep short unions inline and wrap long ones; \"multiline\" — put each union member on a separate line. Default: \"auto\".",
+          "enumDescriptions": [
+            "keep short unions inline and wrap long ones",
+            "put each union member on a separate line"
+          ]
+        },
+        "bicepConditionalHeader": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "auto",
+            "next-line"
+          ],
+          "default": "inline",
+          "description": "Keep resource/module if headers inline, move if to the next line when long, or always move it. Choices: \"inline\" — keep direct resource/module if headers inline; \"auto\" — move if to the next line only when the header exceeds width; \"next-line\" — always put if on the next line. Default: \"inline\".",
+          "enumDescriptions": [
+            "keep direct resource/module if headers inline",
+            "move if to the next line only when the header exceeds width",
+            "always put if on the next line"
+          ]
+        },
+        "bicepLoopLayout": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "expanded"
+          ],
+          "default": "auto",
+          "description": "Compact object-loop headers when they fit or retain expanded brackets. Choices: \"auto\" — compact object-loop headers when they fit; \"expanded\" — retain expanded native brackets. Default: \"auto\".",
+          "enumDescriptions": [
+            "compact object-loop headers when they fit",
+            "retain expanded native brackets"
+          ]
+        },
+        "bicepImportMemberOrder": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "alphabetical"
+          ],
+          "default": "preserve",
+          "description": "Keep imported symbol order or sort by the original imported name. Choices: \"preserve\" — retain imported symbol order; \"alphabetical\" — sort by original imported name. Default: \"preserve\".",
+          "enumDescriptions": [
+            "retain imported symbol order",
+            "sort by original imported name"
+          ]
+        },
+        "bicepTypeMemberOrder": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "required-first"
+          ],
+          "default": "preserve",
+          "description": "Keep object-type property order or put required properties before nullable/optional properties. Choices: \"preserve\" — retain object-type member order; \"required-first\" — place syntactically nullable members last. Default: \"preserve\".",
+          "enumDescriptions": [
+            "retain object-type member order",
+            "place syntactically nullable members last"
+          ]
+        },
+        "printWidth": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 180,
+          "description": "Wrapping target for Bicep files when bicepPrintWidth is not set. Default: 180."
+        },
+        "tabWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "default": 2,
+          "description": "Indentation width for Bicep files when bicepTabWidth is not set. Default: 2."
+        },
+        "useTabs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use tabs for indentation when bicepIndentStyle is inherit. Default: false."
+        },
+        "endOfLine": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "lf",
+            "crlf",
+            "cr"
+          ],
+          "default": "auto",
+          "enumDescriptions": [
+            "preserve the detected line ending convention",
+            "use LF line endings",
+            "use CRLF line endings",
+            "use CR line endings"
+          ],
+          "description": "Line ending convention for formatted Bicep files. Choices: \"auto\" — preserve the detected line ending convention; \"lf\" — use LF line endings; \"crlf\" — use CRLF line endings; \"cr\" — use CR line endings. Default: \"auto\"."
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "options": {
+                "$ref": "#/$defs/configuration"
+              }
+            }
+          }
+        }
+      },
+      "propertyNames": {
+        "anyOf": [
+          {
+            "not": {
+              "pattern": "^bicep"
+            }
+          },
+          {
+            "enum": [
+              "bicepPrintWidth",
+              "bicepTabWidth",
+              "bicepIndentStyle",
+              "bicepSortDeclarations",
+              "bicepDeclarationOrder",
+              "bicepSortProperties",
+              "bicepResourcePropertyOrder",
+              "bicepModulePropertyOrder",
+              "bicepSortDecorators",
+              "bicepDecoratorOrder",
+              "bicepObjectLayout",
+              "bicepArrayLayout",
+              "bicepDeclarationSpacing",
+              "bicepPropertyBlankLines",
+              "bicepTypeOrder",
+              "bicepFunctionOrder",
+              "bicepVariablePlacement",
+              "bicepExistingResourcePlacement",
+              "bicepOutputPlacement",
+              "bicepOutputOnlyVariables",
+              "bicepNestedResources",
+              "bicepQuoteProperties",
+              "bicepLambdaParentheses",
+              "bicepDescriptionWidth",
+              "bicepDependencyOrder",
+              "bicepUnusedDeclarations",
+              "bicepSectionComments",
+              "bicepIgnoredDeclarations",
+              "bicepResourceModuleOrder",
+              "bicepImportSpacing",
+              "bicepUnionLayout",
+              "bicepConditionalHeader",
+              "bicepLoopLayout",
+              "bicepImportMemberOrder",
+              "bicepTypeMemberOrder"
+            ]
+          }
+        ]
+      },
+      "additionalProperties": true
+    }
+  }
+}
