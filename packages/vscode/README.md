@@ -18,7 +18,7 @@ compact blocks; parameters with `@description` have a blank line on either
 side. Set `bicepFlex.bicepParameterSpacing` to `"inherit"` to follow general
 declaration spacing instead. Resource properties place `location` before
 `dependsOn` by default; the property order is configurable. Multiline ternary
-branches indent one level.
+branches indent one level, including wrapped conditions inside array loops.
 Extra spaces between syntax tokens on one line
 are collapsed without changing comments or strings. Change options in the VS Code Settings UI or User
 Settings JSON:

@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Indent `?` and `:` branches in array comprehensions one level deeper when
+  their ternary condition wraps across lines.
 - Place resource `location` before `dependsOn` by default; custom resource
   property priority arrays still override this order.
 - Indent multiline ternary object, array, loop, and function-call branches by

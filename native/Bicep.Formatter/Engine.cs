@@ -325,13 +325,14 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var indent = options.UseTabs ? "\t" : new string(' ', options.TabWidth);
         if (indent.Length == 0) return source;
         var dedents = new Dictionary<int, int>();
+        var indents = new Dictionary<int, int>();
         static bool CompoundBranch(SyntaxBase expression) => expression switch
         {
             ObjectSyntax or ArraySyntax or ForSyntax or FunctionCallSyntax or InstanceFunctionCallSyntax => true,
             ParenthesizedExpressionSyntax parenthesized => CompoundBranch(parenthesized.Expression),
             _ => false,
         };
-        void DedentLines(int begin, int end)
+        void CollectLines(Dictionary<int, int> levels, int begin, int end)
         {
             for (var newline = source.IndexOf('\n', begin);
                 newline >= 0 && newline + 1 < end;
@@ -339,19 +340,23 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             {
                 var start = newline + 1;
                 if (protectedSpans.Any(span => span.Position < start && span.GetEndPosition() > start)) continue;
-                dedents[start] = dedents.GetValueOrDefault(start) + 1;
+                levels[start] = levels.GetValueOrDefault(start) + 1;
             }
         }
         foreach (var ternary in tree.Nodes.OfType<TernaryOperationSyntax>())
         {
+            var conditionWraps = source.LastIndexOf('\n', ternary.ConditionExpression.Span.Position) !=
+                source.LastIndexOf('\n', ternary.Question.Span.Position);
             var parent = tree.Parents.GetValueOrDefault(ternary);
+            if (parent is ForSyntax loop && ReferenceEquals(loop.Body, ternary) && conditionWraps)
+            {
+                CollectLines(indents, ternary.ConditionExpression.Span.GetEndPosition(), ternary.Span.GetEndPosition());
+            }
             while (parent is not null && parent is not TernaryOperationSyntax)
                 parent = tree.Parents.GetValueOrDefault(parent);
-            if (parent is not null &&
-                source.LastIndexOf('\n', ternary.ConditionExpression.Span.Position) !=
-                source.LastIndexOf('\n', ternary.Question.Span.Position))
+            if (parent is not null && conditionWraps)
             {
-                DedentLines(ternary.ConditionExpression.Span.GetEndPosition(), ternary.Span.GetEndPosition());
+                CollectLines(dedents, ternary.ConditionExpression.Span.GetEndPosition(), ternary.Span.GetEndPosition());
             }
             foreach (var (separator, branch) in new[]
                 {
@@ -362,15 +367,21 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 if (CompoundBranch(branch) &&
                     source.LastIndexOf('\n', separator.Span.Position) == source.LastIndexOf('\n', branch.Span.Position))
                 {
-                    DedentLines(branch.Span.Position, branch.Span.GetEndPosition());
+                    CollectLines(dedents, branch.Span.Position, branch.Span.GetEndPosition());
                 }
             }
         }
         var changes = new List<TextEdit>();
-        foreach (var (start, levels) in dedents)
+        foreach (var start in dedents.Keys.Concat(indents.Keys).Distinct())
         {
+            var levels = indents.GetValueOrDefault(start) - dedents.GetValueOrDefault(start);
+            if (levels > 0)
+            {
+                changes.Add(new(start, 0, string.Concat(Enumerable.Repeat(indent, levels))));
+                continue;
+            }
             var length = 0;
-            for (var level = 0; level < levels && source.AsSpan(start + length).StartsWith(indent); level++)
+            for (var level = 0; level < -levels && source.AsSpan(start + length).StartsWith(indent); level++)
                 length += indent.Length;
             if (length > 0) changes.Add(new(start, length, ""));
         }

@@ -555,6 +555,62 @@ test("nested and parenthesized ternary objects preserve comments and literal ind
   assert.match(protectedText, /\n {4}child: \{\n {6}name: 'first'/);
 });
 
+test("multiline ternaries in array comprehensions indent branches past the loop body", async () => {
+  const source = [
+    "var config = {",
+    "  allowedClientApplications: [",
+    "    for (allowedApplication, i) in union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications: union(",
+    "        defaultIdentityProviders,",
+    "        authenticationSettings.identityProviders",
+    "      ).microsoftEntraId.referenceType == 'UniqueNames'",
+    "      ? entraJwtAllowedApplications[i]!.appId",
+    "      : allowedApplication",
+    "  ]",
+    "}",
+    "",
+  ].join("\n");
+  const expected = source
+    .replace(
+      "\n      ? entraJwtAllowedApplications",
+      "\n        ? entraJwtAllowedApplications",
+    )
+    .replace("\n      : allowedApplication", "\n        : allowedApplication");
+  assert.equal(await stable(source, { tabWidth: 2 }), expected);
+  const fourSpaces = await stable(source, { tabWidth: 4 });
+  assert.match(fourSpaces, /\n {8}for \(allowedApplication, i\)/);
+  assert.match(fourSpaces, /\n {16}\? entraJwtAllowedApplications/);
+  assert.match(fourSpaces, /\n {16}: allowedApplication/);
+  const tabs = await stable(source, { tabWidth: 4, useTabs: true });
+  assert.match(tabs, /\n\t{2}for \(allowedApplication, i\)/);
+  assert.match(tabs, /\n\t{4}\? entraJwtAllowedApplications/);
+  assert.match(tabs, /\n\t{4}: allowedApplication/);
+});
+
+test("loop ternary indentation leaves unrelated ternaries and ignored declarations alone", async () => {
+  const loop = await stable(
+    "param names array\nvar values = [for name in names: union({first:name},{other:name}).first == 'first' ? name : 'other']\n",
+    { printWidth: 60 },
+  );
+  assert.match(loop, /\n {2}for name in names: union\(/);
+  assert.match(loop, /\n {6}\? name\n {6}: 'other'\n\]/);
+  const compound = await stable(
+    "param names array\nvar values = [for name in names: union({first:name},{other:name}).first == 'first' ? {value:name} : {value:'other'}]\n",
+    { printWidth: 60 },
+  );
+  assert.match(
+    compound,
+    /\n {6}\? \{\n {8}value: name\n {6}\}\n {6}: \{\n {8}value: 'other'\n {6}\}/,
+  );
+  const ordinary = await stable(
+    "var value = union({first:'a'},{other:'b'}).first == 'a' ? 'yes' : 'no'\n",
+    { printWidth: 36 },
+  );
+  assert.match(ordinary, /\n {2}\? 'yes'\n {2}: 'no'/);
+  const ignored =
+    "// prettier-ignore\nvar values = [for name in names: union({first:name},{other:name}).first == 'first'\n    ? name\n    : 'other']\n";
+  assert.equal(await stable(ignored, { printWidth: 60 }), ignored);
+});
+
 const resourceGroupLoopHeader =
   "resource resourceGroupsRes 'Microsoft.Resources/resourceGroups@2025-04-01' = [for resourceGroup in resourceGroups: if (union(defaultResourceGroup, resourceGroup).create) {";
 const resourceGroupLoop =

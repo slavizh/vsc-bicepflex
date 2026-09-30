@@ -99,7 +99,8 @@ to `"preserve"` alone still groups plain parameters.
 Long calls and ternaries wrap at grammar-valid positions. Nested ternary
 continuations and multiline object, array, loop, or call branches advance by
 one indentation level (two spaces by default), without reindenting multiline
-strings or comments. Binary expressions
+strings or comments. In array comprehensions, `?` and `:` following a wrapped
+loop-body condition get one additional continuation level. Binary expressions
 cannot arbitrarily wrap. Calls inside `&&`/`||` conditions stay inline by
 default, even when the condition exceeds the width target, so logical clauses
 remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow

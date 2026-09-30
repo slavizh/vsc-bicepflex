@@ -119,6 +119,17 @@ async function run() {
     ternaryObject.getText(),
     /\n {2}\? \{\n {4}name: 'first'\n {2}\}\n {2}: \{\n {4}name: 'other'\n {2}\}/,
   );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "loop-ternary.bicep"),
+    "param names array\nvar values = [for name in names: union({first:name},{other:name}).first == 'first' ? name : 'other']\n",
+  );
+  const loopTernary = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "loop-ternary.bicep"),
+  );
+  await vscode.window.showTextDocument(loopTernary);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(loopTernary.getText(), /\n {2}for name in names: union\(/);
+  assert.match(loopTernary.getText(), /\n {6}\? name\n {6}: 'other'\n\]/);
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
