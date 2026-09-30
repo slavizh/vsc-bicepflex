@@ -182,17 +182,31 @@
           ],
           "order": 11
         },
+        "bicepFlex.bicepParameterSpacing": {
+          "type": "string",
+          "enum": [
+            "description",
+            "inherit"
+          ],
+          "default": "description",
+          "description": "Spacing between consecutive Bicep parameter declarations. Choices: \"description\" — group plain parameters and separate any parameter with @description; \"inherit\" — follow bicepDeclarationSpacing for every parameter. Default: \"description\".",
+          "enumDescriptions": [
+            "group plain parameters and separate any parameter with @description",
+            "follow bicepDeclarationSpacing for every parameter"
+          ],
+          "order": 12
+        },
         "bicepFlex.bicepPropertyBlankLines": {
           "type": "boolean",
           "default": false,
           "description": "Preserve author blank lines between object properties. Default: false.",
-          "order": 12
+          "order": 13
         },
         "bicepFlex.bicepSortDeclarations": {
           "type": "boolean",
           "default": true,
           "description": "Apply section and dependency-aware declaration ordering. Default: true.",
-          "order": 13
+          "order": 14
         },
         "bicepFlex.bicepDeclarationOrder": {
           "type": "array",
@@ -234,13 +248,13 @@
             "output"
           ],
           "description": "Declaration section priorities, listed from first to last. Default: [\"metadata\",\"extension\",\"targetScope\",\"import\",\"type\",\"param\",\"func\",\"var\",\"resource\",\"module\",\"output\"].",
-          "order": 14
+          "order": 15
         },
         "bicepFlex.bicepSortProperties": {
           "type": "boolean",
           "default": true,
           "description": "Order immediate resource and module body properties. Default: true.",
-          "order": 15
+          "order": 16
         },
         "bicepFlex.bicepResourcePropertyOrder": {
           "type": "array",
@@ -267,7 +281,7 @@
             "properties"
           ],
           "description": "Resource property priorities; * marks unlisted properties. Default: [\"name\",\"parent\",\"scope\",\"dependsOn\",\"location\",\"tags\",\"identity\",\"kind\",\"sku\",\"zones\",\"plan\",\"*\",\"properties\"].",
-          "order": 16
+          "order": 17
         },
         "bicepFlex.bicepModulePropertyOrder": {
           "type": "array",
@@ -286,13 +300,13 @@
             "params"
           ],
           "description": "Module property priorities; * marks unlisted properties. Default: [\"name\",\"scope\",\"dependsOn\",\"*\",\"params\"].",
-          "order": 17
+          "order": 18
         },
         "bicepFlex.bicepSortDecorators": {
           "type": "boolean",
           "default": true,
           "description": "Order recognized built-in decorators. Default: true.",
-          "order": 18
+          "order": 19
         },
         "bicepFlex.bicepDecoratorOrder": {
           "type": "array",
@@ -332,7 +346,7 @@
             "batchSize"
           ],
           "description": "Built-in decorator priorities. Default: [\"export\",\"sealed\",\"description\",\"metadata\",\"discriminator\",\"secure\",\"allowed\",\"minLength\",\"maxLength\",\"minValue\",\"maxValue\",\"batchSize\"].",
-          "order": 19
+          "order": 20
         },
         "bicepFlex.bicepVariablePlacement": {
           "type": "string",
@@ -346,7 +360,7 @@
             "place used variables before their first consumer",
             "keep variables in the configured variable section"
           ],
-          "order": 20
+          "order": 21
         },
         "bicepFlex.bicepExistingResourcePlacement": {
           "type": "string",
@@ -360,7 +374,7 @@
             "place used existing resources before first use",
             "retain their position in dependency-safe resource order"
           ],
-          "order": 21
+          "order": 22
         },
         "bicepFlex.bicepOutputPlacement": {
           "type": "string",
@@ -374,7 +388,7 @@
             "place resource/module outputs after their dependencies",
             "leave outputs in the configured output section"
           ],
-          "order": 22
+          "order": 23
         },
         "bicepFlex.bicepOutputOnlyVariables": {
           "type": "string",
@@ -388,7 +402,7 @@
             "keep output-only variables with outputs at the end",
             "allow placement next to their dependencies"
           ],
-          "order": 23
+          "order": 24
         },
         "bicepFlex.bicepResourceModuleOrder": {
           "type": "string",
@@ -402,7 +416,7 @@
             "place resources and modules in one section",
             "respect their separate section priorities"
           ],
-          "order": 24
+          "order": 25
         },
         "bicepFlex.bicepTypeOrder": {
           "type": "string",
@@ -418,7 +432,7 @@
             "put referenced types first",
             "retain source order within the type section"
           ],
-          "order": 25
+          "order": 26
         },
         "bicepFlex.bicepFunctionOrder": {
           "type": "string",
@@ -434,7 +448,7 @@
             "put callers before called functions",
             "retain source order within the function section"
           ],
-          "order": 26
+          "order": 27
         },
         "bicepFlex.bicepNestedResources": {
           "type": "string",
@@ -448,7 +462,7 @@
             "place nested resources after ordinary properties",
             "keep them as boundaries between property sections"
           ],
-          "order": 27
+          "order": 28
         },
         "bicepFlex.bicepImportSpacing": {
           "type": "string",
@@ -466,7 +480,7 @@
             "retain author spacing",
             "follow declaration spacing"
           ],
-          "order": 28
+          "order": 29
         },
         "bicepFlex.bicepUnionLayout": {
           "type": "string",
@@ -480,7 +494,7 @@
             "keep short unions inline and wrap long ones",
             "put each union member on a separate line"
           ],
-          "order": 29
+          "order": 30
         },
         "bicepFlex.bicepConditionalHeader": {
           "type": "string",
@@ -496,7 +510,7 @@
             "move if to the next line only when the header exceeds width",
             "always put if on the next line"
           ],
-          "order": 30
+          "order": 31
         },
         "bicepFlex.bicepLogicalCallLayout": {
           "type": "string",
@@ -510,7 +524,7 @@
             "keep calls within && and || conditions on one line",
             "wrap call arguments in logical conditions to the width target"
           ],
-          "order": 31
+          "order": 32
         },
         "bicepFlex.bicepLoopLayout": {
           "type": "string",
@@ -524,7 +538,7 @@
             "compact object-loop headers when they fit",
             "retain expanded native brackets"
           ],
-          "order": 32
+          "order": 33
         },
         "bicepFlex.bicepQuoteProperties": {
           "type": "string",
@@ -538,7 +552,7 @@
             "remove optional quotes around identifier keys",
             "retain source quoting"
           ],
-          "order": 33
+          "order": 34
         },
         "bicepFlex.bicepLambdaParentheses": {
           "type": "string",
@@ -554,7 +568,7 @@
             "add parentheses around one lambda parameter",
             "retain the source choice"
           ],
-          "order": 34
+          "order": 35
         },
         "bicepFlex.bicepDescriptionWidth": {
           "type": "string",
@@ -568,7 +582,7 @@
             "leave descriptions inline regardless of width",
             "wrap long description calls without reflowing their strings"
           ],
-          "order": 35
+          "order": 36
         },
         "bicepFlex.bicepDependencyOrder": {
           "type": "string",
@@ -582,7 +596,7 @@
             "choose the earliest currently ready declaration",
             "pull prerequisites before the earliest consumer"
           ],
-          "order": 36
+          "order": 37
         },
         "bicepFlex.bicepUnusedDeclarations": {
           "type": "string",
@@ -596,7 +610,7 @@
             "keep unused variables and existing resources in place",
             "allow them to move within their sections"
           ],
-          "order": 37
+          "order": 38
         },
         "bicepFlex.bicepSectionComments": {
           "type": "string",
@@ -610,7 +624,7 @@
             "keep blank-line-separated headings in place",
             "move headings with the next declaration"
           ],
-          "order": 38
+          "order": 39
         },
         "bicepFlex.bicepIgnoredDeclarations": {
           "type": "string",
@@ -624,7 +638,7 @@
             "allow ignored declarations to move without changing their text",
             "keep ignored declarations in place"
           ],
-          "order": 39
+          "order": 40
         },
         "bicepFlex.bicepImportMemberOrder": {
           "type": "string",
@@ -638,7 +652,7 @@
             "retain imported symbol order",
             "sort by original imported name"
           ],
-          "order": 40
+          "order": 41
         },
         "bicepFlex.bicepTypeMemberOrder": {
           "type": "string",
@@ -652,7 +666,7 @@
             "retain object-type member order",
             "place syntactically nullable members last"
           ],
-          "order": 41
+          "order": 42
         }
       }
     },

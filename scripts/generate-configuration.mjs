@@ -99,6 +99,7 @@ const settingsOrder = [
   "useTabs",
   "endOfLine",
   "bicepDeclarationSpacing",
+  "bicepParameterSpacing",
   "bicepPropertyBlankLines",
   "bicepSortDeclarations",
   "bicepDeclarationOrder",
@@ -149,6 +150,11 @@ const choiceDescriptions = {
     separate: "insert one blank line between declarations",
     compact: "remove blank lines between declarations",
     preserve: "retain author spacing where safe",
+  },
+  bicepParameterSpacing: {
+    description:
+      "group plain parameters and separate any parameter with @description",
+    inherit: "follow bicepDeclarationSpacing for every parameter",
   },
   bicepTypeOrder: {
     "dependents-first": "put referencing types first",

@@ -95,6 +95,45 @@ async function run() {
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
   assert.equal(config.inspect("bicepArrayLayout").defaultValue, "compact");
+  assert.equal(
+    config.inspect("bicepParameterSpacing").defaultValue,
+    "description",
+  );
+  for (const [file, spacing, expected] of [
+    [
+      "grouped-params.bicep",
+      undefined,
+      "param first string\nparam second string\n",
+    ],
+    [
+      "separate-params.bicep",
+      "inherit",
+      "param first string\n\nparam second string\n",
+    ],
+  ]) {
+    if (spacing) {
+      await config.update(
+        "bicepParameterSpacing",
+        spacing,
+        vscode.ConfigurationTarget.Workspace,
+      );
+    }
+    await fs.writeFile(
+      path.join(folder.uri.fsPath, file),
+      "param first string\n\nparam second string\n",
+    );
+    const parameters = await vscode.workspace.openTextDocument(
+      vscode.Uri.joinPath(folder.uri, file),
+    );
+    await vscode.window.showTextDocument(parameters);
+    await vscode.commands.executeCommand("editor.action.formatDocument");
+    assert.equal(parameters.getText(), expected);
+  }
+  await config.update(
+    "bicepParameterSpacing",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
   await config.update("bicepTabWidth", 4, vscode.ConfigurationTarget.Workspace);
   await fs.writeFile(
     path.join(folder.uri.fsPath, "settings.bicep"),

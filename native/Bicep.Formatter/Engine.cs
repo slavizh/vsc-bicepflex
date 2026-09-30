@@ -204,7 +204,8 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 changes.Add(new(decorator.Span.Position, decorator.Span.Length, rendered));
             }
         }
-        if (options.BicepDeclarationSpacing != "preserve" || options.BicepImportSpacing is "compact" or "separate")
+        if (options.BicepDeclarationSpacing != "preserve" || options.BicepImportSpacing is "compact" or "separate" ||
+            options.BicepParameterSpacing == "description")
         {
             foreach (var container in tree.Nodes.Where(n => n is ProgramSyntax or ObjectSyntax))
             {
@@ -223,6 +224,15 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                         string.IsNullOrWhiteSpace(gap[(gap.IndexOf('\n') + 1)..]);
                     var spacing = consecutiveImports && options.BicepImportSpacing != "inherit"
                         ? options.BicepImportSpacing : options.BicepDeclarationSpacing;
+                    if (options.BicepParameterSpacing == "description" &&
+                        previous is ParameterDeclarationSyntax previousParameter &&
+                        current is ParameterDeclarationSyntax currentParameter &&
+                        string.IsNullOrWhiteSpace(gap))
+                    {
+                        spacing = previousParameter.Decorators.Any(d => Layout.DecoratorName(d) == "description") ||
+                            currentParameter.Decorators.Any(d => Layout.DecoratorName(d) == "description")
+                            ? "separate" : "compact";
+                    }
                     if (spacing == "preserve") continue;
                     var normalized = DeclarationGap().Replace(gap,
                         match => match.Groups[1].Value + (spacing == "separate" ? "\n" : ""), 1);

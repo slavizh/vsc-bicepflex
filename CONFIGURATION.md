@@ -48,6 +48,20 @@ for the options it specifies.
 The extension reads project config and EditorConfig only in trusted workspaces.
 [configuration.example.json](configuration.example.json) contains all defaults.
 
+## Parameter spacing
+
+By default, consecutive `.bicep` parameter declarations without
+`@description` have no blank line between them. A parameter decorated with
+`@description` (including `@sys.description`) is separated from its neighboring
+parameters by one blank line. Other decorators do not separate parameters.
+Spacing next to non-parameter declarations and across comments follows
+`bicepDeclarationSpacing`; `.bicepparam` assignments are unaffected.
+
+Set the `bicepParameterSpacing` option to `"inherit"` in project configuration (or
+`"bicepFlex.bicepParameterSpacing": "inherit"` in VS Code Settings) to apply
+`bicepDeclarationSpacing` to all parameter gaps instead. This also restores
+author spacing when `bicepDeclarationSpacing` is `"preserve"`.
+
 ## Named presets
 
 Choose a VS Code setting in User or Workspace Settings:

@@ -59,6 +59,7 @@
   "bicepObjectLayout": "multiline",
   "bicepArrayLayout": "compact",
   "bicepDeclarationSpacing": "separate",
+  "bicepParameterSpacing": "description",
   "bicepPropertyBlankLines": false,
   "bicepTypeOrder": "dependents-first",
   "bicepFunctionOrder": "dependencies-first",

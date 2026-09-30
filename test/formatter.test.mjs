@@ -54,6 +54,63 @@ test("objects expand, primitive arrays compact, and declarations are separated",
   );
 });
 
+test("parameters form compact blocks unless either neighbor has a description", async () => {
+  const source =
+    "param first string\n\nparam second int\n@description('Explains third')\nparam third bool\nparam fourth string\n@sys.description('Explains fifth')\nparam fifth string\nparam sixth string\n\nvar result=first\n";
+  const grouped = await stable(source);
+  assert.equal(
+    grouped,
+    "param first string\nparam second int\n\n@description('Explains third')\nparam third bool\n\nparam fourth string\n\n@sys.description('Explains fifth')\nparam fifth string\n\nparam sixth string\n\nvar result = first\n",
+  );
+  const inherited = await stable(source, { bicepParameterSpacing: "inherit" });
+  assert.match(inherited, /param first string\n\nparam second int\n/);
+  assert.match(inherited, /param fifth string\n\nparam sixth string\n/);
+  const compact = await stable(source, {
+    bicepParameterSpacing: "inherit",
+    bicepDeclarationSpacing: "compact",
+  });
+  assert.match(compact, /param second int\n@description/);
+  assert.match(
+    await stable(source, { bicepDeclarationSpacing: "preserve" }),
+    /param first string\nparam second int\n\n@description/,
+  );
+  assert.match(
+    await stable(source, { bicepDeclarationSpacing: "compact" }),
+    /param second int\n\n@description/,
+  );
+  assert.match(
+    await stable(source, {
+      bicepParameterSpacing: "inherit",
+      bicepDeclarationSpacing: "preserve",
+    }),
+    /param first string\n\nparam second int\n/,
+  );
+});
+
+test("described parameters at either end separate from plain parameters", async () => {
+  const output = await stable(
+    "@description('First')\nparam first string\nparam second string\n@description('Last')\nparam last string\n",
+  );
+  assert.equal(
+    output,
+    "@description('First')\nparam first string\n\nparam second string\n\n@description('Last')\nparam last string\n",
+  );
+});
+
+test("other decorators stay grouped and comment boundaries retain their spacing", async () => {
+  const output = await stable(
+    "param first string\n\n@minLength(1)\nparam second string\n\n// Separate parameter section\n\nparam third string\n\nparam fourth string\n",
+  );
+  assert.match(
+    output,
+    /param first string\n@minLength\(1\)\nparam second string/,
+  );
+  assert.match(
+    output,
+    /param second string\n\n\/\/ Separate parameter section\n\nparam third string\nparam fourth string/,
+  );
+});
+
 test("variables move immediately before first consumer", async () => {
   const output = await stable(
     "var appTags={env:'dev'}\n" +
@@ -69,7 +126,7 @@ test("consecutive named and wildcard imports form one compact block", async () =
   );
   assert.ok(
     output.startsWith(
-      "import { Second } from './import-types.bicep'\nimport { First } from './import-types.bicep'\nimport * as types from './import-types.bicep'\n\nparam first First\n\nparam second Second\n",
+      "import { Second } from './import-types.bicep'\nimport { First } from './import-types.bicep'\nimport * as types from './import-types.bicep'\n\nparam first First\nparam second Second\nparam other types.First\n",
     ),
   );
 });

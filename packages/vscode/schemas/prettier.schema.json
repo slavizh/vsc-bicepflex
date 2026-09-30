@@ -216,6 +216,19 @@
             "retain author spacing where safe"
           ]
         },
+        "bicepParameterSpacing": {
+          "type": "string",
+          "enum": [
+            "description",
+            "inherit"
+          ],
+          "default": "description",
+          "description": "Spacing between consecutive Bicep parameter declarations. Choices: \"description\" — group plain parameters and separate any parameter with @description; \"inherit\" — follow bicepDeclarationSpacing for every parameter. Default: \"description\".",
+          "enumDescriptions": [
+            "group plain parameters and separate any parameter with @description",
+            "follow bicepDeclarationSpacing for every parameter"
+          ]
+        },
         "bicepPropertyBlankLines": {
           "type": "boolean",
           "default": false,
@@ -588,6 +601,7 @@
               "bicepObjectLayout",
               "bicepArrayLayout",
               "bicepDeclarationSpacing",
+              "bicepParameterSpacing",
               "bicepPropertyBlankLines",
               "bicepTypeOrder",
               "bicepFunctionOrder",

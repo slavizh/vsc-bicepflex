@@ -131,6 +131,11 @@ export const options = {
     ["separate", "compact", "preserve"],
     "separate",
   ),
+  bicepParameterSpacing: choice(
+    "Spacing between consecutive Bicep parameter declarations.",
+    ["description", "inherit"],
+    "description",
+  ),
   bicepPropertyBlankLines: boolean(
     "Preserve author blank lines between object properties.",
     false,

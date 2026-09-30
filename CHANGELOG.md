@@ -2,6 +2,9 @@
 
 ## 0.2.1 (unreleased)
 
+- Group consecutive parameters without `@description` by default, separating
+  described parameters; add `bicepParameterSpacing: "inherit"` to follow the
+  general declaration spacing policy instead.
 - Keep function calls within `&&`/`||` conditions inline by default; add
   `bicepLogicalCallLayout: "wrap"` for width-based argument wrapping.
 - Indent nested ternary branches by one configured indentation level rather

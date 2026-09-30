@@ -18,6 +18,7 @@ sealed record FormatOptions
     public string BicepObjectLayout { get; init; } = "multiline";
     public string BicepArrayLayout { get; init; } = "compact";
     public string BicepDeclarationSpacing { get; init; } = "separate";
+    public string BicepParameterSpacing { get; init; } = "description";
     public bool BicepPropertyBlankLines { get; init; }
     public string BicepTypeOrder { get; init; } = "dependents-first";
     public string BicepFunctionOrder { get; init; } = "dependencies-first";
@@ -81,6 +82,10 @@ sealed record FormatOptions
         if (BicepLogicalCallLayout is not ("inline" or "wrap"))
         {
             throw new FormatException("bicepLogicalCallLayout must be inline or wrap.");
+        }
+        if (BicepParameterSpacing is not ("description" or "inherit"))
+        {
+            throw new FormatException("bicepParameterSpacing must be description or inherit.");
         }
         if (PrintWidth < 1 || TabWidth < 0 || TabWidth > 1000)
         {

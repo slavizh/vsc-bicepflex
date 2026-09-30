@@ -82,14 +82,18 @@ a separately installed Prettier plugin. See
 ## Formatting contract
 
 Defaults are two spaces, a 180-column wrapping target, one blank line between
-declarations, and a final newline. Nonempty objects and object types are
+declarations, and a final newline. Consecutive parameters without
+`@description` form a compact block; a parameter with `@description` has a
+blank line before and after it. Nonempty objects and object types are
 multiline; short primitive arrays and unions can fit on one line. Type members,
 import members, ordinary object properties, and array elements retain their
 order.
 
 Consecutive import declarations form a compact block without blank lines between
 them. A blank line separates that block from other declarations. Comment sections
-are preserved; `bicepDeclarationSpacing: "preserve"` retains author spacing instead.
+are preserved. Set `bicepParameterSpacing: "inherit"` to use
+`bicepDeclarationSpacing` for all parameter gaps; `bicepDeclarationSpacing:
+"preserve"` alone still groups plain parameters.
 
 Long calls and ternaries wrap at grammar-valid positions. Nested ternary
 continuations advance by one indentation level (two spaces by default) per
