@@ -617,6 +617,110 @@ test("nested and parenthesized ternary objects preserve comments and literal ind
   assert.match(protectedText, /\n {4}child: \{\n {6}name: 'first'/);
 });
 
+test("ternaries nested in multiline calls retain one indent per branch", async () => {
+  const source = [
+    "param slot object",
+    "param kind string",
+    "param operatingSystem string",
+    "param mountedAzureStorageAccounts array",
+    "var config = {",
+    "  azureStorageAccounts: (slot.runtime =~ 'Docker' || operatingSystem == 'Linux') && !empty(slot.mountedAzureStorageAccounts) && kind != 'functionapp,workflowapp'",
+    "    ? union({",
+    "      '${slot.mountedAzureStorageAccounts[0].name}': {",
+    "        shareName: slot.mountedAzureStorageAccounts[0].type =~ 'AzureFiles'",
+    "          ? slot.mountedAzureStorageAccounts[0].storageAccount.shareName",
+    "          : slot.mountedAzureStorageAccounts[0].type =~ 'AzureBlob'",
+    "          ? slot.mountedAzureStorageAccounts[0].storageAccount.containerName",
+    "          : ''",
+    "      }",
+    "    }, length(slot.mountedAzureStorageAccounts) > 1 ? {",
+    "      '${slot.mountedAzureStorageAccounts[1].name}': {",
+    "        shareName: slot.mountedAzureStorageAccounts[1].type =~ 'AzureFiles'",
+    "          ? slot.mountedAzureStorageAccounts[1].storageAccount.shareName",
+    "          : slot.mountedAzureStorageAccounts[1].type =~ 'AzureBlob'",
+    "          ? slot.mountedAzureStorageAccounts[1].storageAccount.containerName",
+    "          : ''",
+    "      }",
+    "    } : {}, length(slot.mountedAzureStorageAccounts) > 2 ? {",
+    "      '${slot.mountedAzureStorageAccounts[2].name}': {",
+    "        shareName: slot.mountedAzureStorageAccounts[2].type =~ 'AzureFiles'",
+    "          ? slot.mountedAzureStorageAccounts[2].storageAccount.shareName",
+    "          : slot.mountedAzureStorageAccounts[2].type =~ 'AzureBlob'",
+    "          ? slot.mountedAzureStorageAccounts[2].storageAccount.containerName",
+    "          : ''",
+    "      }",
+    "    } : {})",
+    "    : {}",
+    "}",
+    "",
+  ].join("\n");
+  const output = await stable(source);
+  assert.match(output, / {2}azureStorageAccounts:/);
+  assert.match(output, /\n {4}\? union\(\n/);
+  for (const index of [0, 1, 2]) {
+    const depth = index === 0 ? 10 : 12;
+    assert.match(
+      output,
+      new RegExp(
+        `\\n {${depth}}shareName: slot\\.mountedAzureStorageAccounts\\[${index}\\]\\.type =~ 'AzureFiles'\\n {${depth + 2}}\\? slot\\.mountedAzureStorageAccounts\\[${index}\\]`,
+      ),
+    );
+  }
+  assert.match(
+    output,
+    /\n {6}length\(slot\.mountedAzureStorageAccounts\) > 1\n {8}\? \{/,
+  );
+  assert.match(output, /\n {8}: \{\},\n/);
+  const four = await stable(source, { tabWidth: 4 });
+  assert.match(four, /\n {8}\? union\(\n/);
+  const tabs = await stable(source, { tabWidth: 4, useTabs: true });
+  assert.match(tabs, /\n\t{2}\? union\(\n/);
+});
+
+test("all nested storage-account branches keep ternaries and sibling properties aligned", async () => {
+  const account = (index) =>
+    [
+      index === 0
+        ? "{"
+        : `length(slot.mountedAzureStorageAccounts) > ${index} ? {`,
+      `  '\${slot.mountedAzureStorageAccounts[${index}].name}': {`,
+      `    type: slot.mountedAzureStorageAccounts[${index}].type`,
+      `    shareName: slot.mountedAzureStorageAccounts[${index}].type =~ 'AzureFiles'`,
+      `      ? slot.mountedAzureStorageAccounts[${index}].storageAccount.shareName`,
+      `      : slot.mountedAzureStorageAccounts[${index}].type =~ 'AzureBlob'`,
+      `      ? slot.mountedAzureStorageAccounts[${index}].storageAccount.containerName`,
+      "      : ''",
+      `    mountPath: slot.mountedAzureStorageAccounts[${index}].mountPath`,
+      "  }",
+      index === 0 ? "}" : "} : {}",
+    ].join("\n");
+  const source =
+    "param slot object\n" +
+    "param kind string\n" +
+    "param operatingSystem string\n" +
+    "var config = {\n" +
+    "  azureStorageAccounts: (slot.runtime =~ 'Docker' || operatingSystem == 'Linux') && !empty(slot.mountedAzureStorageAccounts) && kind != 'functionapp,workflowapp'\n" +
+    `    ? union(${Array.from({ length: 5 }, (_, index) => account(index)).join(", ")})\n` +
+    "    : {}\n" +
+    "}\n";
+  const output = await stable(source);
+  for (const index of [0, 1, 2, 3, 4]) {
+    const depth = index === 0 ? 10 : 12;
+    assert.match(
+      output,
+      new RegExp(
+        `\\n {${depth}}shareName: slot\\.mountedAzureStorageAccounts\\[${index}\\]\\.type =~ 'AzureFiles'\\n {${depth + 2}}\\? slot\\.mountedAzureStorageAccounts\\[${index}\\]`,
+      ),
+    );
+    assert.match(
+      output,
+      new RegExp(
+        `\\n {${depth}}mountPath: slot\\.mountedAzureStorageAccounts\\[${index}\\]\\.mountPath`,
+      ),
+    );
+  }
+});
+
 test("multiline ternaries in array comprehensions indent branches past the loop body", async () => {
   const source = [
     "var config = {",

@@ -274,6 +274,9 @@ not change indentation, string contents, comments, or ignored declarations.
 Multiline object, array, loop, and function-call branches of ternary expressions
 indent by one configured level relative to `?` or `:`. Nested ternaries keep
 one level per branch; multiline string and comment contents are unchanged.
+Nested ternaries within a multiline call argument retain their own branch
+indentation; only direct branches of an enclosing ternary share its
+continuation dedent. Sibling object properties remain aligned.
 When a `for` expression's ternary body has a wrapped condition, its `?` and
 `:` branches indent one more level than the loop-body condition continuation.
 

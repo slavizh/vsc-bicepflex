@@ -545,6 +545,11 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             ParenthesizedExpressionSyntax parenthesized => CompoundBranch(parenthesized.Expression),
             _ => false,
         };
+        static bool DirectBranch(SyntaxBase branch, TernaryOperationSyntax nested) => branch switch
+        {
+            ParenthesizedExpressionSyntax parenthesized => DirectBranch(parenthesized.Expression, nested),
+            _ => ReferenceEquals(branch, nested),
+        };
         void CollectLines(Dictionary<int, int> levels, int begin, int end)
         {
             for (var newline = source.IndexOf('\n', begin);
@@ -567,7 +572,9 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             }
             while (parent is not null && parent is not TernaryOperationSyntax)
                 parent = tree.Parents.GetValueOrDefault(parent);
-            if (parent is not null && conditionWraps)
+            if (parent is TernaryOperationSyntax enclosing && conditionWraps &&
+                (DirectBranch(enclosing.TrueExpression, ternary) ||
+                 DirectBranch(enclosing.FalseExpression, ternary)))
             {
                 CollectLines(dedents, ternary.ConditionExpression.Span.GetEndPosition(), ternary.Span.GetEndPosition());
             }

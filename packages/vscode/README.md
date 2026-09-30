@@ -20,6 +20,8 @@ block. Set `bicepFlex.bicepParameterSpacing` to `"inherit"` to follow general
 declaration spacing instead. Resource properties place `location` before
 `dependsOn` by default; the property order is configurable. Multiline ternary
 branches indent one level, including wrapped conditions inside array loops.
+Nested ternaries inside wrapped calls retain their branch indentation without
+dedenting neighboring object properties.
 Calls in `if` conditions and conditional loop headers remain inline by default;
 set `bicepFlex.bicepIfConditionLayout` to `"wrap"` for width-based wrapping.
 Extra spaces between syntax tokens on one line

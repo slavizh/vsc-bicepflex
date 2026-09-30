@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Keep ternaries in multiline function arguments indented independently of
+  enclosing conditionals, including nested object values and sibling properties.
 - Keep comments attached to plain parameters within compact parameter blocks
   instead of inserting a blank line before the comment.
 - Collapse fitting call-expression loops and their safe object arguments to
