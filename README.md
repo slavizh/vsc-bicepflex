@@ -95,6 +95,8 @@ them. A blank line separates that block from other declarations. Comment section
 are preserved. Set `bicepParameterSpacing: "inherit"` to use
 `bicepDeclarationSpacing` for all parameter gaps; setting declaration spacing
 to `"preserve"` alone still groups plain parameters.
+Use `bicepParameterSpacing: "preserve"` to retain author gaps between
+consecutive parameters independently of general declaration spacing.
 
 Long calls and ternaries wrap at grammar-valid positions. Nested ternary
 continuations and multiline object, array, loop, or call branches advance by
@@ -123,6 +125,17 @@ complete header fits `printWidth`. Conditional loops keep
 body once and close with `}]`. `bicepLoopLayout: "expanded"` retains expanded
 brackets. Comments at bracket boundaries and inside calls are preserved rather
 than moved to force compaction.
+
+Applicable layout and placement settings also offer `"preserve"`: authored
+compact/expanded objects and arrays, individual union breaks, description and
+condition-call line breaks, conditional `if` placement, loop brackets, parameter
+spacing, and dependency-safe positions of variables and outputs. Layout
+`"preserve"` can exceed `printWidth`; comments, directives, multiline literals,
+dependencies, and the syntax/diagnostic safety checks take precedence.
+For ordering controls expressed as booleans, use `bicepSortDeclarations: false`,
+`bicepSortProperties: false`, or `bicepSortDecorators: false` instead of a
+redundant `"preserve"` value. See [CONFIGURATION.md](CONFIGURATION.md) for
+individual settings and interactions.
 
 ### Line endings and multiline strings
 

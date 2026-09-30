@@ -54,6 +54,29 @@ sealed class SyntaxTree : CstVisitor
         return string.Join("/", parts);
     }
 
+    public string Path(SyntaxBase node)
+    {
+        var parts = new Stack<string>();
+        while (Parents.TryGetValue(node, out var parent))
+        {
+            var peers = Children[parent].Where(child => child.GetType() == node.GetType()).ToArray();
+            static string? Label(SyntaxBase child) => child switch
+            {
+                ITopLevelNamedDeclarationSyntax named => named.Name.IdentifierName,
+                ObjectPropertySyntax property => property.TryGetKeyText(),
+                ObjectTypePropertySyntax { Key: IdentifierSyntax key } => key.IdentifierName,
+                ObjectTypePropertySyntax { Key: StringSyntax key } => key.TryGetLiteralValue(),
+                DecoratorSyntax decorator => Layout.DecoratorName(decorator),
+                _ => null,
+            };
+            var label = Label(node);
+            var unique = label is not null && peers.Count(peer => Label(peer) == label) == 1;
+            parts.Push($"{node.GetType().Name}:{(unique ? JsonSerializer.Serialize(label) : Array.IndexOf(peers, node).ToString())}");
+            node = parent;
+        }
+        return string.Join("/", parts);
+    }
+
     public IEnumerable<Token> Within(SyntaxBase node) => Tokens.Where(t =>
         t.Span.Position >= node.Span.Position && t.Span.GetEndPosition() <= node.Span.GetEndPosition());
 

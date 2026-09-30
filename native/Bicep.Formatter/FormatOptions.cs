@@ -80,17 +80,28 @@ sealed record FormatOptions
 
     public void Validate()
     {
-        if (BicepIfConditionLayout is not ("inline" or "wrap"))
+        static void CheckChoice(string name, string value, params string[] allowed)
         {
-            throw new FormatException("bicepIfConditionLayout must be inline or wrap.");
+            if (!allowed.Contains(value))
+                throw new FormatException($"{name} must be {string.Join(", ", allowed)}.");
         }
-        if (BicepLogicalCallLayout is not ("inline" or "wrap"))
+        CheckChoice("bicepObjectLayout", BicepObjectLayout, "multiline", "auto", "preserve");
+        CheckChoice("bicepParameterSpacing", BicepParameterSpacing, "description", "inherit", "preserve");
+        CheckChoice("bicepVariablePlacement", BicepVariablePlacement, "first-use", "section", "preserve");
+        CheckChoice("bicepOutputPlacement", BicepOutputPlacement, "dependency", "end", "preserve");
+        CheckChoice("bicepOutputOnlyVariables", BicepOutputOnlyVariables, "end", "dependency", "preserve");
+        CheckChoice("bicepDescriptionWidth", BicepDescriptionWidth, "ignore", "wrap", "preserve");
+        CheckChoice("bicepDependencyOrder", BicepDependencyOrder, "ready-first", "dependencies-first", "preserve");
+        CheckChoice("bicepUnionLayout", BicepUnionLayout, "auto", "multiline", "preserve");
+        CheckChoice("bicepConditionalHeader", BicepConditionalHeader, "inline", "auto", "next-line", "preserve");
+        CheckChoice("bicepLoopLayout", BicepLoopLayout, "auto", "expanded", "preserve");
+        if (BicepIfConditionLayout is not ("inline" or "wrap" or "preserve"))
         {
-            throw new FormatException("bicepLogicalCallLayout must be inline or wrap.");
+            throw new FormatException("bicepIfConditionLayout must be inline, wrap, or preserve.");
         }
-        if (BicepParameterSpacing is not ("description" or "inherit"))
+        if (BicepLogicalCallLayout is not ("inline" or "wrap" or "preserve"))
         {
-            throw new FormatException("bicepParameterSpacing must be description or inherit.");
+            throw new FormatException("bicepLogicalCallLayout must be inline, wrap, or preserve.");
         }
         if (PrintWidth < 1 || TabWidth < 0 || TabWidth > 1000)
         {

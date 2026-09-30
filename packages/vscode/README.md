@@ -40,6 +40,11 @@ In the VS Code Settings UI, Preset appears first when browsing the extension
 with an empty search box; frequently used layout and ordering options follow.
 Dropdown descriptions explain each available value. Searches may use VS Code's
 own ordering.
+Where applicable, choose `"preserve"` to retain authored layout or
+dependency-safe declaration placement; compact layouts may exceed the width
+target. Parameter spacing has its own preserve choice, separate from general
+declaration spacing. Safety checks still reject changed syntax or diagnostics;
+see the [configuration reference](https://github.com/slavizh/vsc-bicepflex/blob/main/CONFIGURATION.md).
 The extension always uses its bundled Bicep plugin; project plugin entries
 do not load into the extension, and no project npm install is necessary. Only
 trusted workspaces load project Prettier configuration. See the

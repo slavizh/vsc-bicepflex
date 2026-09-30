@@ -118,7 +118,7 @@ export const options = {
   bicepDecoratorOrder: list("Built-in decorator priorities.", decoratorOrder),
   bicepObjectLayout: choice(
     "Layout of nonempty objects and object types.",
-    ["multiline", "auto"],
+    ["multiline", "auto", "preserve"],
     "multiline",
   ),
   bicepArrayLayout: choice(
@@ -133,7 +133,7 @@ export const options = {
   ),
   bicepParameterSpacing: choice(
     "Spacing between consecutive Bicep parameter declarations.",
-    ["description", "inherit"],
+    ["description", "inherit", "preserve"],
     "description",
   ),
   bicepPropertyBlankLines: boolean(
@@ -151,8 +151,8 @@ export const options = {
     "dependencies-first",
   ),
   bicepVariablePlacement: choice(
-    "Place variables before their first consumer or in the variable section.",
-    ["first-use", "section"],
+    "Place variables before first use, in the variable section, or in dependency-safe source order.",
+    ["first-use", "section", "preserve"],
     "first-use",
   ),
   bicepExistingResourcePlacement: choice(
@@ -161,13 +161,13 @@ export const options = {
     "first-use",
   ),
   bicepOutputPlacement: choice(
-    "Place direct resource/module outputs after their dependencies or at the end.",
-    ["dependency", "end"],
+    "Place resource/module outputs after dependencies, at the end, or in dependency-safe source order.",
+    ["dependency", "end", "preserve"],
     "dependency",
   ),
   bicepOutputOnlyVariables: choice(
-    "Place output-only variables and their outputs at the end or by dependency.",
-    ["end", "dependency"],
+    "Place output-only variables and outputs at the end, by dependency, or in dependency-safe source order.",
+    ["end", "dependency", "preserve"],
     "end",
   ),
   bicepNestedResources: choice(
@@ -187,12 +187,12 @@ export const options = {
   ),
   bicepDescriptionWidth: choice(
     "Whether description decorators respect the width target.",
-    ["ignore", "wrap"],
+    ["ignore", "wrap", "preserve"],
     "ignore",
   ),
   bicepDependencyOrder: choice(
-    "Resolve dependency ties by choosing the earliest ready declaration or pulling dependencies before the earliest consumer.",
-    ["ready-first", "dependencies-first"],
+    "Resolve dependency ties by earliest readiness, proximity to consumers, or dependency-safe source order.",
+    ["ready-first", "dependencies-first", "preserve"],
     "ready-first",
   ),
   bicepUnusedDeclarations: choice(
@@ -221,28 +221,28 @@ export const options = {
     "compact",
   ),
   bicepUnionLayout: choice(
-    "Keep short unions inline and wrap to width, or put every union member on its own line.",
-    ["auto", "multiline"],
+    "Keep unions width-aware, multiline, or in their authored member layout.",
+    ["auto", "multiline", "preserve"],
     "auto",
   ),
   bicepConditionalHeader: choice(
-    "Keep resource/module if headers inline, move if to the next line when long, or always move it.",
-    ["inline", "auto", "next-line"],
+    "Keep direct if headers inline, move when long, always move, or retain authored placement.",
+    ["inline", "auto", "next-line", "preserve"],
     "inline",
   ),
   bicepIfConditionLayout: choice(
-    "Keep calls in if conditions inline and compact conditional object-loop headers beyond the width target, or allow width-based wrapping.",
-    ["inline", "wrap"],
+    "Keep if-condition calls and conditional loop headers inline, width-aware, or authored.",
+    ["inline", "wrap", "preserve"],
     "inline",
   ),
   bicepLogicalCallLayout: choice(
-    "Keep calls in logical if conditions inline for readability, or wrap their arguments to the width target.",
-    ["inline", "wrap"],
+    "Keep logical if-condition calls inline, width-aware, or in their authored layout.",
+    ["inline", "wrap", "preserve"],
     "inline",
   ),
   bicepLoopLayout: choice(
-    "Compact object-loop headers when they fit or retain expanded brackets.",
-    ["auto", "expanded"],
+    "Compact fitting object-loop brackets, expand them, or retain authored shape.",
+    ["auto", "expanded", "preserve"],
     "auto",
   ),
   bicepImportMemberOrder: choice(

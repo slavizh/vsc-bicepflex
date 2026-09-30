@@ -141,11 +141,13 @@ const choiceDescriptions = {
   bicepObjectLayout: {
     multiline: "expand nonempty objects and object types",
     auto: "keep compact source objects on one line when they fit",
+    preserve:
+      "retain the author's compact or expanded layout even beyond the width target when safe",
   },
   bicepArrayLayout: {
     compact: "fit arrays of primitive literals on one line",
     multiline: "expand arrays of primitive literals",
-    preserve: "retain the source layout when width permits",
+    preserve: "retain the source layout even beyond the width target when safe",
   },
   bicepDeclarationSpacing: {
     separate: "insert one blank line between declarations",
@@ -156,6 +158,8 @@ const choiceDescriptions = {
     description:
       "group plain parameters and separate any parameter with @description",
     inherit: "follow bicepDeclarationSpacing for every parameter",
+    preserve:
+      "retain author blank lines between consecutive parameters where safe",
   },
   bicepTypeOrder: {
     "dependents-first": "put referencing types first",
@@ -170,6 +174,7 @@ const choiceDescriptions = {
   bicepVariablePlacement: {
     "first-use": "place used variables before their first consumer",
     section: "keep variables in the configured variable section",
+    preserve: "keep variables in author order when dependencies allow",
   },
   bicepExistingResourcePlacement: {
     "first-use": "place used existing resources before first use",
@@ -178,10 +183,13 @@ const choiceDescriptions = {
   bicepOutputPlacement: {
     dependency: "place resource/module outputs after their dependencies",
     end: "leave outputs in the configured output section",
+    preserve: "keep outputs in author order when dependencies allow",
   },
   bicepOutputOnlyVariables: {
     end: "keep output-only variables with outputs at the end",
     dependency: "allow placement next to their dependencies",
+    preserve:
+      "keep output-only helpers and outputs in author order when dependencies allow",
   },
   bicepNestedResources: {
     last: "place nested resources after ordinary properties",
@@ -199,10 +207,14 @@ const choiceDescriptions = {
   bicepDescriptionWidth: {
     ignore: "leave descriptions inline regardless of width",
     wrap: "wrap long description calls without reflowing their strings",
+    preserve:
+      "retain the author's inline or multiline description layout even beyond width",
   },
   bicepDependencyOrder: {
     "ready-first": "choose the earliest currently ready declaration",
     "dependencies-first": "pull prerequisites before the earliest consumer",
+    preserve:
+      "keep dependency-safe declarations in author order instead of section order",
   },
   bicepUnusedDeclarations: {
     boundary: "keep unused variables and existing resources in place",
@@ -229,24 +241,32 @@ const choiceDescriptions = {
   bicepUnionLayout: {
     auto: "keep short unions inline and wrap long ones",
     multiline: "put each union member on a separate line",
+    preserve: "keep source union layout even beyond width when safe",
   },
   bicepConditionalHeader: {
     inline: "keep direct resource/module if headers inline",
     auto: "move if to the next line only when the header exceeds width",
     "next-line": "always put if on the next line",
+    preserve: "retain the author's inline or next-line direct if placement",
   },
   bicepIfConditionLayout: {
     inline:
       "keep if-condition calls inline and compact conditional object-loop headers regardless of width",
     wrap: "wrap calls and conditional object-loop headers to the width target",
+    preserve:
+      "retain authored if-condition calls and conditional loop headers even beyond width",
   },
   bicepLogicalCallLayout: {
     inline: "keep calls within && and || conditions on one line",
     wrap: "wrap call arguments in logical conditions to the width target",
+    preserve:
+      "retain authored call layout inside logical conditions even beyond width",
   },
   bicepLoopLayout: {
     auto: "compact object-loop headers when they fit",
     expanded: "retain expanded native brackets",
+    preserve:
+      "retain authored compact or expanded object-loop brackets even beyond width",
   },
   bicepImportMemberOrder: {
     preserve: "retain imported symbol order",

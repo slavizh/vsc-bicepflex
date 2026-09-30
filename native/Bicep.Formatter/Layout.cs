@@ -137,7 +137,8 @@ sealed partial class Layout(
         {
             children = children.Where(n => n is not Token { Type: TokenType.NewLine or TokenType.Comma } || SyntaxTree.HasComments(n));
         }
-        else if (array.Items.Any() && (options.BicepArrayLayout == "multiline" || !primitive))
+        else if (array.Items.Any() && (options.BicepArrayLayout == "multiline" ||
+            !primitive && options.BicepArrayLayout != "preserve"))
         {
             children = children.Prepend(SyntaxTree.Newline());
         }

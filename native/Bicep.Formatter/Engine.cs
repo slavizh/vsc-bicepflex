@@ -14,6 +14,15 @@ using Bicep.IO.Abstraction;
 
 sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions options, bool parameters)
 {
+    private readonly Dictionary<string, string> authorLayout = [];
+    private readonly Dictionary<string, bool> authorConditionalNextLine = [];
+    private readonly Dictionary<string, bool> authorCompactLoops = [];
+    private readonly Dictionary<string, bool[]> authorUnionBreaks = [];
+    private readonly Dictionary<string, bool[]> authorCallBreaks = [];
+
+    private string? Original(SyntaxTree tree, SyntaxBase node) =>
+        authorLayout.GetValueOrDefault(tree.Path(node));
+
     private BicepSourceFile Parse(string source, bool originalInput = false)
     {
         var file = (BicepSourceFile)compiler.SourceFileFactory.CreateSourceFile(
@@ -44,6 +53,56 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         options.Validate();
         var original = Parse(source, originalInput: true);
         var originalTree = new SyntaxTree(original.ProgramSyntax);
+        foreach (var node in originalTree.Nodes.Where(node => node is
+            ObjectSyntax or ObjectTypeSyntax or ArraySyntax or UnionTypeSyntax or
+            FunctionCallSyntax or InstanceFunctionCallSyntax or DecoratorSyntax or
+            IfConditionSyntax or ForSyntax))
+        {
+            authorLayout[originalTree.Path(node)] = SyntaxTree.Slice(source, node);
+        }
+        foreach (var condition in originalTree.Nodes.OfType<IfConditionSyntax>())
+        {
+            if (!originalTree.Parents.TryGetValue(condition, out var parent) ||
+                parent is not ResourceDeclarationSyntax and not ModuleDeclarationSyntax) continue;
+            var equals = source.LastIndexOf('=', condition.Keyword.Span.Position);
+            if (equals >= 0)
+                authorConditionalNextLine[originalTree.Path(condition)] =
+                    source.AsSpan(equals, condition.Keyword.Span.Position - equals).Contains('\n');
+        }
+        foreach (var loop in originalTree.Nodes.OfType<ForSyntax>())
+        {
+            authorCompactLoops[originalTree.Path(loop)] =
+                !source.AsSpan(loop.OpenSquare.Span.GetEndPosition(),
+                    loop.ForKeyword.Span.Position - loop.OpenSquare.Span.GetEndPosition()).Contains('\n');
+        }
+        foreach (var union in originalTree.Nodes.OfType<UnionTypeSyntax>())
+        {
+            var members = union.Children.OfType<UnionTypeMemberSyntax>().ToArray();
+            var previous = originalTree.Tokens.LastOrDefault(t => t.Type != TokenType.NewLine &&
+                t.Span.GetEndPosition() <= union.Span.Position);
+            var start = previous?.Span.GetEndPosition() ?? union.Span.Position;
+            authorUnionBreaks[originalTree.Path(union)] = members.Select(member =>
+            {
+                var broken = source.AsSpan(start, member.Value.Span.Position - start).Contains('\n');
+                start = member.Value.Span.GetEndPosition();
+                return broken;
+            }).ToArray();
+        }
+        foreach (var call in originalTree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax))
+        {
+            if (CallParts(originalTree, call) is not { } parts) continue;
+            var start = parts.Open.Span.GetEndPosition();
+            var breaks = parts.Arguments
+                .Select(argument =>
+                {
+                    var broken = source.AsSpan(start, argument.Span.Position - start).Contains('\n');
+                    start = argument.Span.GetEndPosition();
+                    return broken;
+                })
+                .ToArray();
+            authorCallBreaks[originalTree.Path(call)] =
+                [.. breaks, source.AsSpan(start, parts.Close.Span.Position - start).Contains('\n')];
+        }
         var fingerprint = originalTree.Fingerprint(original.ProgramSyntax);
         var model = Bind(original);
         var diagnostics = DiagnosticCounts(model);
@@ -58,6 +117,15 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var formatted = PrettyPrinterV2.PrintValid(rewritten, options.Printer);
 
         formatted = Finish(formatted, ignored);
+        if (options.BicepObjectLayout == "preserve" || options.BicepArrayLayout == "preserve" ||
+            options.BicepUnionLayout == "preserve" || options.BicepIfConditionLayout == "preserve" ||
+            options.BicepLogicalCallLayout == "preserve")
+        {
+            var wide = Finish(PrettyPrinterV2.PrintValid(rewritten, options.Printer with { Width = int.MaxValue }), ignored);
+            formatted = PreserveCompactLayouts(formatted, wide, ignored.Keys.ToHashSet());
+        }
+        if (options.BicepIfConditionLayout == "preserve" || options.BicepLogicalCallLayout == "preserve")
+            formatted = PreserveCallBreaks(formatted, ignored.Keys.ToHashSet());
         if (options.BicepIfConditionLayout == "inline" || options.BicepLogicalCallLayout == "inline")
         {
             formatted = InlineConditionCalls(formatted, ignored.Keys.ToHashSet());
@@ -85,6 +153,124 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             throw new FormatterException("BICEP_SAFETY_CHECK_FAILED", $"Formatting would introduce Bicep diagnostics: {string.Join("; ", introduced)}");
         }
         return formatted;
+    }
+
+    private string PreserveCompactLayouts(string source, string wide, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var wideTree = new SyntaxTree(Parse(wide).ProgramSyntax);
+        var wideNodes = wideTree.Nodes
+            .Where(node => node is ObjectSyntax or ObjectTypeSyntax or ArraySyntax or UnionTypeSyntax or
+                FunctionCallSyntax or InstanceFunctionCallSyntax)
+            .ToDictionary(wideTree.Path, node => node);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        bool IsConditionalCall(SyntaxBase node, out bool logical)
+        {
+            logical = false;
+            while (tree.Parents.TryGetValue(node, out var parent))
+            {
+                if (parent is BinaryOperationSyntax binary &&
+                    binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd)
+                    logical = true;
+                if (parent is IfConditionSyntax) return true;
+                node = parent;
+            }
+            return false;
+        }
+        var candidates = new List<TextEdit>();
+        foreach (var node in tree.Nodes)
+        {
+            var eligible = node switch
+            {
+                ObjectSyntax or ObjectTypeSyntax => options.BicepObjectLayout == "preserve",
+                ArraySyntax => options.BicepArrayLayout == "preserve",
+                UnionTypeSyntax => options.BicepUnionLayout == "preserve",
+                FunctionCallSyntax or InstanceFunctionCallSyntax when IsConditionalCall(node, out var logical) =>
+                    (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) == "preserve",
+                _ => false,
+            };
+            if (!eligible || Original(tree, node) is not string original || original.Contains('\n') ||
+                !SyntaxTree.Slice(source, node).Contains('\n') || SyntaxTree.HasComments(node) ||
+                protectedSpans.Any(span => span.Position < node.Span.GetEndPosition() &&
+                    span.GetEndPosition() > node.Span.Position) ||
+                !wideNodes.TryGetValue(tree.Path(node), out var wideNode)) continue;
+            var compact = SyntaxTree.Slice(wide, wideNode);
+            if (!compact.Contains('\n'))
+                candidates.Add(new(node.Span.Position, node.Span.Length, compact));
+        }
+        var changes = new List<TextEdit>();
+        foreach (var candidate in candidates.OrderBy(edit => edit.Start).ThenByDescending(edit => edit.Length))
+        {
+            if (!changes.Any(edit => edit.Start <= candidate.Start &&
+                edit.Start + edit.Length >= candidate.Start + candidate.Length))
+                changes.Add(candidate);
+        }
+        return TextEdit.Apply(source, changes);
+    }
+
+    private static (Token Open, SyntaxBase[] Arguments, Token Close)? CallParts(SyntaxTree tree, SyntaxBase call)
+    {
+        var tokens = tree.Within(call).ToArray();
+        var open = tokens.FirstOrDefault(token => token.Text == "(");
+        var close = tokens.LastOrDefault(token => token.Text == ")");
+        var arguments = call switch
+        {
+            FunctionCallSyntax function => function.Arguments.Cast<SyntaxBase>().ToArray(),
+            InstanceFunctionCallSyntax function => function.Arguments.Cast<SyntaxBase>().ToArray(),
+            _ => [],
+        };
+        return open is not null && close is not null && arguments.Length > 0
+            ? (open, arguments, close) : null;
+    }
+
+    private string PreserveCallBreaks(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var indent = options.UseTabs ? "\t" : new string(' ', options.TabWidth);
+        var changes = new List<TextEdit>();
+        foreach (var call in tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax))
+        {
+            var parent = call;
+            var logical = false;
+            var conditional = false;
+            while (tree.Parents.TryGetValue(parent, out parent))
+            {
+                if (parent is BinaryOperationSyntax binary &&
+                    binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd) logical = true;
+                if (parent is IfConditionSyntax) { conditional = true; break; }
+            }
+            if (!conditional ||
+                (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) != "preserve" ||
+                !authorCallBreaks.TryGetValue(tree.Path(call), out var breaks) ||
+                SyntaxTree.HasComments(call) ||
+                protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
+                    span.GetEndPosition() > call.Span.Position) ||
+                CallParts(tree, call) is not { } parts || breaks.Length != parts.Arguments.Length + 1) continue;
+            var lineStart = source.LastIndexOf('\n', call.Span.Position) + 1;
+            var padding = source[lineStart..call.Span.Position].TakeWhile(c => c is ' ' or '\t');
+            var leading = string.Concat(padding);
+            var start = parts.Open.Span.GetEndPosition();
+            for (var index = 0; index < parts.Arguments.Length; index++)
+            {
+                var argument = parts.Arguments[index];
+                var gap = source[start..argument.Span.Position];
+                if (gap.All(c => char.IsWhiteSpace(c) || c == ','))
+                {
+                    var desired = breaks[index] ? (index == 0 ? "" : ",") + "\n" + leading + indent :
+                        index == 0 ? "" : ", ";
+                    if (gap != desired) changes.Add(new(start, gap.Length, desired));
+                }
+                start = argument.Span.GetEndPosition();
+            }
+            var closing = source[start..parts.Close.Span.Position];
+            if (closing.All(char.IsWhiteSpace))
+            {
+                var desired = breaks[^1] ? "\n" + leading : "";
+                if (closing != desired) changes.Add(new(start, closing.Length, desired));
+            }
+        }
+        return TextEdit.Apply(source, changes);
     }
 
     private static Dictionary<string, int> DiagnosticCounts(SemanticModel model) =>
@@ -205,7 +391,10 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             if (Layout.DecoratorName(decorator) == "description" && !SyntaxTree.HasComments(decorator))
             {
                 var rendered = PrettyPrinterV2.PrintValid(decorator, options.Printer with { Width = int.MaxValue, InsertFinalNewline = false }).TrimEnd('\r', '\n');
-                if (options.BicepDescriptionWidth == "wrap")
+                var authoredBreaks = authorCallBreaks.GetValueOrDefault(tree.Path(decorator.Expression));
+                if (options.BicepDescriptionWidth == "wrap" ||
+                    options.BicepDescriptionWidth == "preserve" && authoredBreaks is [_, _] &&
+                    authoredBreaks.Contains(true))
                 {
                     var lineStart = source.LastIndexOf('\n', Math.Max(0, decorator.Span.Position - 1)) + 1;
                     var indent = source[lineStart..decorator.Span.Position];
@@ -216,7 +405,8 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                         _ => [],
                     };
                     if (arguments.Length != 1 || !indent.All(c => c is ' ' or '\t') ||
-                        !rendered.Contains('\n') && (indent + rendered).Replace("\t", new string(' ', options.TabWidth)).Length <= options.PrintWidth)
+                        options.BicepDescriptionWidth == "wrap" && !rendered.Contains('\n') &&
+                        (indent + rendered).Replace("\t", new string(' ', options.TabWidth)).Length <= options.PrintWidth)
                     {
                         continue;
                     }
@@ -224,7 +414,10 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     var argumentText = SyntaxTree.Slice(source, argument);
                     var callPrefix = source[decorator.Span.Position..arguments[0].Span.Position].TrimEnd(' ', '\t', '\r', '\n');
                     var padding = options.UseTabs ? "\t" : new string(' ', options.TabWidth);
-                    rendered = callPrefix + "\n" + indent + padding + argumentText + "\n" + indent + ")";
+                    rendered = options.BicepDescriptionWidth == "preserve"
+                        ? callPrefix + (authoredBreaks![0] ? "\n" + indent + padding : "") +
+                            argumentText + (authoredBreaks[1] ? "\n" + indent : "") + ")"
+                        : callPrefix + "\n" + indent + padding + argumentText + "\n" + indent + ")";
                 }
                 changes.Add(new(decorator.Span.Position, decorator.Span.Length, rendered));
             }
@@ -249,6 +442,9 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                         string.IsNullOrWhiteSpace(gap[(gap.IndexOf('\n') + 1)..]);
                     var spacing = consecutiveImports && options.BicepImportSpacing != "inherit"
                         ? options.BicepImportSpacing : options.BicepDeclarationSpacing;
+                    if (previous is ParameterDeclarationSyntax && current is ParameterDeclarationSyntax &&
+                        options.BicepParameterSpacing == "preserve")
+                        spacing = "preserve";
                     if (options.BicepParameterSpacing == "description" &&
                         previous is ParameterDeclarationSyntax previousParameter &&
                         current is ParameterDeclarationSyntax currentParameter &&
@@ -406,23 +602,30 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             return source[start..end];
         }
         var changes = new List<TextEdit>();
-        if (options.BicepUnionLayout == "multiline")
+        if (options.BicepUnionLayout is "multiline" or "preserve")
         {
             foreach (var union in tree.Nodes.OfType<UnionTypeSyntax>())
             {
                 if (IsProtected(union)) continue;
                 var members = union.Children.OfType<UnionTypeMemberSyntax>().ToArray();
                 if (members.Length < 2) continue;
+                var breaks = authorUnionBreaks.GetValueOrDefault(tree.Path(union));
+                if (options.BicepUnionLayout == "preserve" && breaks is null) continue;
                 var previous = tree.Tokens.LastOrDefault(t => t.Type != TokenType.NewLine && t.Span.GetEndPosition() <= union.Span.Position);
                 if (previous is null) continue;
                 var padding = LineIndent(previous.Span.Position) + indent;
                 var start = previous.Span.GetEndPosition();
-                foreach (var member in members)
+                for (var index = 0; index < members.Length; index++)
                 {
+                    var member = members[index];
                     var gap = source[start..member.Value.Span.Position];
                     if (gap.All(c => char.IsWhiteSpace(c) || c == '|'))
                     {
-                        changes.Add(new(start, gap.Length, "\n" + padding + "| "));
+                        var broken = options.BicepUnionLayout == "multiline" ||
+                            index < breaks?.Length && breaks[index];
+                        changes.Add(new(start, gap.Length, broken
+                            ? "\n" + padding + "| "
+                            : index == 0 ? " " : " | "));
                     }
                     start = member.Value.Span.GetEndPosition();
                 }
@@ -449,6 +652,8 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             if (header.Contains('\n')) continue;
             var width = header.Replace("\t", new string(' ', options.TabWidth)).Length +
                 indents.GetValueOrDefault(lineStart) * options.TabWidth;
+            if (options.BicepConditionalHeader == "preserve" &&
+                !authorConditionalNextLine.GetValueOrDefault(tree.Path(condition))) continue;
             if (options.BicepConditionalHeader == "auto" && width <= options.PrintWidth) continue;
             changes.Add(new(start, keyword - start, "\n" + LineIndent(keyword) +
                 string.Concat(Enumerable.Repeat(indent, indents.GetValueOrDefault(lineStart) + 1))));
@@ -477,6 +682,8 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var dedents = new Dictionary<int, int>();
         foreach (var loop in tree.Nodes.OfType<ForSyntax>())
         {
+            if (options.BicepLoopLayout == "preserve" &&
+                !authorCompactLoops.GetValueOrDefault(tree.Path(loop))) continue;
             if (protectedSpans.Any(s => s.Position <= loop.Span.Position && s.GetEndPosition() >= loop.Span.GetEndPosition())) continue;
             var body = loop.Body switch
             {
@@ -494,13 +701,15 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             var lineStart = source.LastIndexOf('\n', loop.OpenSquare.Span.Position) + 1;
             var prefix = source[lineStart..openEnd];
             var header = source[loop.ForKeyword.Span.Position..body.OpenBrace.Span.GetEndPosition()];
-            if (header.Contains('\n')) continue;
+            var preserveHeader = loop.Body is IfConditionSyntax && options.BicepIfConditionLayout == "preserve" &&
+                authorCompactLoops.GetValueOrDefault(tree.Path(loop));
+            if (header.Contains('\n') && options.BicepLoopLayout != "preserve" && !preserveHeader) continue;
             var spaceBeforeColon = loop.Body is IfConditionSyntax && loop.Expression is ParenthesizedExpressionSyntax &&
                 loop.Expression.Span.GetEndPosition() == loop.Colon.Span.Position;
             var width = (prefix + header).Replace("\t", new string(' ', options.TabWidth)).Length -
                 dedents.GetValueOrDefault(lineStart) * options.TabWidth + (spaceBeforeColon ? 1 : 0);
-            if (width > options.PrintWidth &&
-                (loop.Body is not IfConditionSyntax || options.BicepIfConditionLayout != "inline")) continue;
+            if (width > options.PrintWidth && options.BicepLoopLayout != "preserve" &&
+                (loop.Body is not IfConditionSyntax || options.BicepIfConditionLayout != "inline" && !preserveHeader)) continue;
 
             if (spaceBeforeColon)
                 changes.Add(new(loop.Colon.Span.Position, 0, " "));

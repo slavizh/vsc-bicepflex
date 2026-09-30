@@ -2,6 +2,10 @@
 
 ## 0.2.1 (unreleased)
 
+- Add source-faithful `"preserve"` choices for applicable object, union,
+  conditional, loop, description, parameter-spacing, and declaration-placement
+  policies. Existing array preservation also retains compact source layout
+  beyond the width target where safe.
 - Keep calls inside `if` conditions and conditional object-loop headers inline
   by default, even beyond the width target; set
   `bicepIfConditionLayout: "wrap"` to allow width-based wrapping.
