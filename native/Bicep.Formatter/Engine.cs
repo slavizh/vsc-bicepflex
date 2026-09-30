@@ -754,6 +754,29 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         }
     }
 
+    private string RemoveInlineObjectBracePadding(string expression)
+    {
+        if (!expression.Contains('{')) return expression;
+        const string prefix = "var __bicepflex_inline = ";
+        var tree = new SyntaxTree(Parse(prefix + expression + "\n").ProgramSyntax);
+        var changes = new List<TextEdit>();
+        foreach (var obj in tree.Nodes.OfType<ObjectSyntax>())
+        {
+            var contents = tree.Children[obj].Where(node => node is not Token).ToArray();
+            if (contents.Length == 0) continue;
+            var left = obj.OpenBrace.Span.GetEndPosition() - prefix.Length;
+            var first = contents[0].Span.Position - prefix.Length;
+            var last = contents[^1].Span.GetEndPosition() - prefix.Length;
+            var right = obj.CloseBrace.Span.Position - prefix.Length;
+            if (left < 0 || right > expression.Length ||
+                expression.AsSpan(left, first - left).IndexOfAnyExcept(' ', '\t') >= 0 ||
+                expression.AsSpan(last, right - last).IndexOfAnyExcept(' ', '\t') >= 0) continue;
+            if (first > left) changes.Add(new(left, first - left, ""));
+            if (right > last) changes.Add(new(last, right - last, ""));
+        }
+        return TextEdit.Apply(expression, changes);
+    }
+
     private string CompactExpressionLoops(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
@@ -781,6 +804,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 InsertFinalNewline = false,
             }).TrimEnd('\r', '\n');
             if (inline.Contains('\n')) continue;
+            inline = RemoveInlineObjectBracePadding(inline);
             var replacement = "[" + header + inline + "]";
             var lineStart = source.LastIndexOf('\n', loop.OpenSquare.Span.Position) + 1;
             var line = source[lineStart..loop.OpenSquare.Span.Position] + replacement;

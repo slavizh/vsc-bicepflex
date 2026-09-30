@@ -126,7 +126,9 @@ body once and close with `}]`. `bicepLoopLayout: "expanded"` retains expanded
 brackets. Comments at bracket boundaries and inside calls are preserved rather
 than moved to force compaction.
 Call-expression loops also collapse to one line when the entire expression
-fits; object arguments in those loops become compact when safe. Set
+fits; object arguments in those loops become compact without padding inside
+their braces (for example, `union(props, {slots: slots})`). Other inline
+objects retain native brace spacing. Set
 `bicepLoopLayout: "expanded"` to retain expanded brackets or
 `bicepObjectLayout: "preserve"` to retain an expanded object argument.
 

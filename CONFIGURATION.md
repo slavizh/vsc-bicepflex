@@ -307,7 +307,9 @@ flattening, and a multiline loop collection can still require expanded
 brackets. Compact conditional loops with parenthesized collections use
 `in (collection) : if (...)` spacing.
 Call-expression loops can also compact both brackets and object arguments
-when the complete line fits. Comments, directives, multiline literals, and
+when the complete line fits. Their inline object arguments have no padding
+inside braces (`{slots: slots}`); other inline objects retain native spacing.
+Comments, directives, multiline literals, and
 `bicepObjectLayout: "preserve"` prevent collapsing an expanded object argument.
 `bicepLoopLayout: "expanded"` keeps these loop brackets expanded.
 

@@ -722,8 +722,21 @@ test("fitting call-expression loops collapse their object argument and array bra
     "  slots: apiAppsRes[i].outputs.slots\n" +
     "})]\n";
   const compact =
-    "output apiApps array = [for (apiApp, i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, { slots: apiAppsRes[i].outputs.slots })]\n";
+    "output apiApps array = [for (apiApp, i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, {slots: apiAppsRes[i].outputs.slots})]\n";
   assert.equal(await stable(source), compact);
+  assert.equal(
+    await stable(
+      "output x array=[for i in values: union(items[i], {name:'{ keep }', details:{enabled:true}})]\n",
+    ),
+    "output x array = [for i in values: union(items[i], {name: '{ keep }', details: {enabled: true}})]\n",
+  );
+  assert.equal(
+    await stable("output x object={value:'keep ordinary object spacing'}\n", {
+      bicepObjectLayout: "auto",
+    }),
+    "output x object = { value: 'keep ordinary object spacing' }\n",
+  );
+  assert.equal(await stable(source, { bicepObjectLayout: "auto" }), compact);
   assert.equal(
     await stable(
       "param names array=[]\noutput upper array=[for name in names: toUpper(name)]\n",
@@ -767,6 +780,16 @@ test("fitting call-expression loops collapse their object argument and array bra
   assert.match(
     await stable(source, { bicepObjectLayout: "preserve" }),
     /union\(apiAppsRes\[i\]\.outputs\.siteProperties, \{\n/,
+  );
+  assert.equal(
+    await stable(
+      compact.replace("{slots:", "{ slots:").replace(".slots})]", ".slots })]"),
+      {
+        bicepObjectLayout: "preserve",
+        bicepLoopLayout: "preserve",
+      },
+    ),
+    compact,
   );
   const commented = source.replace(
     "  slots:",

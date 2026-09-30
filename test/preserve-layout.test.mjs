@@ -120,6 +120,16 @@ test("preserve also retains inline object layout in Bicep parameter files", asyn
   assert.equal(await format(output, options), output);
 });
 
+test("compact call-expression loops use tight braces in parameter files", async () => {
+  const options = { plugins: [plugin], parser: "bicepparam" };
+  const source =
+    "using './main.bicep'\nvar apps=[]\nvar values=[for x in apps: union(x, {slots:[]})]\n";
+  const expected =
+    "using './main.bicep'\n\nvar apps = []\n\nvar values = [for x in apps: union(x, {slots: []})]\n";
+  assert.equal(await format(source, options), expected);
+  assert.equal(await format(expected, options), expected);
+});
+
 test("preserve keeps direct conditional placement and loop bracket shape", async () => {
   const resource =
     "resource r 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'";

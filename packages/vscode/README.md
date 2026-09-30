@@ -34,7 +34,8 @@ Settings JSON:
 ```
 
 Call-expression loops, including `union(..., { ... })` bodies, also compact
-when the entire line fits; comments and preserved object layouts stay intact.
+when the entire line fits, with tight object braces (`{slots: slots}`);
+comments and preserved object layouts stay intact.
 
 Set `"bicepFlex.preset": "minimal"` to avoid declaration and property
 reordering. Individual settings override options supplied by optional
