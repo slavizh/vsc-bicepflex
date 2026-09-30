@@ -2,6 +2,9 @@
 
 ## 0.2.1 (unreleased)
 
+- Keep calls inside `if` conditions and conditional object-loop headers inline
+  by default, even beyond the width target; set
+  `bicepIfConditionLayout: "wrap"` to allow width-based wrapping.
 - Indent `?` and `:` branches in array comprehensions one level deeper when
   their ternary condition wraps across lines.
 - Place resource `location` before `dependsOn` by default; custom resource

@@ -130,10 +130,24 @@ async function run() {
   await vscode.commands.executeCommand("editor.action.formatDocument");
   assert.match(loopTernary.getText(), /\n {2}for name in names: union\(/);
   assert.match(loopTernary.getText(), /\n {6}\? name\n {6}: 'other'\n\]/);
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "conditional-loop.bicep"),
+    "resource apps 'Microsoft.Graph/applications@v1.0' existing = [for item in (union(defaults, overrides).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications): if (union(defaults, overrides).microsoftEntraId.referenceType == 'UniqueNames') {uniqueName:item}]\n",
+  );
+  const conditionalLoop = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "conditional-loop.bicep"),
+  );
+  await vscode.window.showTextDocument(conditionalLoop);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(
+    conditionalLoop.getText(),
+    / = \[for item in \(union\(defaults, overrides\)\.microsoftEntraId\.validation\.jwtClaimChecks\.allowedClientApplications\) : if \(union\(defaults, overrides\)\.microsoftEntraId\.referenceType == 'UniqueNames'\) \{\n  uniqueName: item\n\}\]/,
+  );
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
   assert.equal(config.inspect("bicepArrayLayout").defaultValue, "compact");
+  assert.equal(config.inspect("bicepIfConditionLayout").defaultValue, "inline");
   assert.deepEqual(
     config.inspect("bicepResourcePropertyOrder").defaultValue.slice(0, 5),
     ["name", "parent", "scope", "location", "dependsOn"],

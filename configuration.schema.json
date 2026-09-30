@@ -480,6 +480,19 @@
             "always put if on the next line"
           ]
         },
+        "bicepIfConditionLayout": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "wrap"
+          ],
+          "default": "inline",
+          "description": "Keep calls in if conditions inline and compact conditional object-loop headers beyond the width target, or allow width-based wrapping. Choices: \"inline\" — keep if-condition calls inline and compact conditional object-loop headers regardless of width; \"wrap\" — wrap calls and conditional object-loop headers to the width target. Default: \"inline\".",
+          "enumDescriptions": [
+            "keep if-condition calls inline and compact conditional object-loop headers regardless of width",
+            "wrap calls and conditional object-loop headers to the width target"
+          ]
+        },
         "bicepLogicalCallLayout": {
           "type": "string",
           "enum": [
@@ -621,6 +634,7 @@
               "bicepImportSpacing",
               "bicepUnionLayout",
               "bicepConditionalHeader",
+              "bicepIfConditionLayout",
               "bicepLogicalCallLayout",
               "bicepLoopLayout",
               "bicepImportMemberOrder",

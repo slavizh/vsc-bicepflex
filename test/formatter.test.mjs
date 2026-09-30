@@ -627,6 +627,67 @@ test("conditional resource loop header fits on one line with a single body inden
   assert.ok(output.endsWith("  properties: {}\n}]\n"));
 });
 
+test("conditional loop headers stay inline beyond width unless if-call wrapping is requested", async () => {
+  const source =
+    "resource entraJwtAllowedApplications 'Microsoft.Graph/applications@v1.0' existing = [\n" +
+    "  for allowedApplication in (union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications): if (union(\n" +
+    "    defaultIdentityProviders,\n" +
+    "    authenticationSettings.identityProviders\n" +
+    "  ).microsoftEntraId.referenceType == 'UniqueNames') {\n" +
+    "    uniqueName: allowedApplication\n" +
+    "  }\n" +
+    "]\n";
+  const inline = await stable(source);
+  const header =
+    "resource entraJwtAllowedApplications 'Microsoft.Graph/applications@v1.0' existing = [for allowedApplication in (union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications) : if (union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.referenceType == 'UniqueNames') {";
+  assert.ok(header.length > 180);
+  assert.ok(inline.includes(header + "\n  uniqueName: allowedApplication\n}]"));
+  assert.doesNotMatch(inline, /if \(union\(\s*\n/);
+  const wrapped = await stable(source, { bicepIfConditionLayout: "wrap" });
+  assert.match(wrapped, / = \[\n  for allowedApplication/);
+  assert.match(wrapped, /if \(union\(\n\s+defaultIdentityProviders,/);
+  assert.ok(
+    (
+      await stable(source, {
+        bicepIfConditionLayout: "wrap",
+        printWidth: header.length,
+      })
+    ).includes(header),
+  );
+  assert.match(
+    await stable(source, {
+      bicepIfConditionLayout: "wrap",
+      printWidth: header.length - 1,
+    }),
+    / = \[\n  for allowedApplication/,
+  );
+  const expanded = await stable(source, { bicepLoopLayout: "expanded" });
+  assert.match(expanded, / = \[\n  for allowedApplication/);
+  assert.match(
+    expanded,
+    /if \(union\(defaultIdentityProviders, authenticationSettings\.identityProviders\)/,
+  );
+  const commented = source.replace(
+    "    authenticationSettings.identityProviders\n  ).microsoftEntraId.referenceType",
+    "    /* preserve comment */ authenticationSettings.identityProviders\n  ).microsoftEntraId.referenceType",
+  );
+  const safe = await stable(commented);
+  assert.match(safe, /\/\* preserve comment \*\//);
+  assert.match(safe, / = \[\n  for allowedApplication/);
+});
+
+test("direct if conditions keep calls inline unless wrapping is requested", async () => {
+  const source =
+    "resource example 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (union(defaultProps, overrides).enabled) {name:'example',location:'westeurope'}\n";
+  const inline = await stable(source, { printWidth: 40 });
+  assert.match(inline, /if \(union\(defaultProps, overrides\)\.enabled\) \{/);
+  const wrapped = await stable(source, {
+    printWidth: 40,
+    bicepIfConditionLayout: "wrap",
+  });
+  assert.match(wrapped, /if \(union\(\n\s+defaultProps,/);
+});
+
 test("object loop wrapping changes at the exact header width", async () => {
   const fits = await stable(resourceGroupLoop, {
     printWidth: resourceGroupLoopHeader.length,
@@ -634,8 +695,13 @@ test("object loop wrapping changes at the exact header width", async () => {
   assert.ok(fits.includes(resourceGroupLoopHeader));
   const wraps = await stable(resourceGroupLoop, {
     printWidth: resourceGroupLoopHeader.length - 1,
+    bicepIfConditionLayout: "wrap",
   });
   assert.match(wraps, / = \[\n  for resourceGroup/);
+  const inline = await stable(resourceGroupLoop, {
+    printWidth: resourceGroupLoopHeader.length - 1,
+  });
+  assert.ok(inline.includes(resourceGroupLoopHeader));
   assert.match(wraps, /\n    name: resourceGroup\.name\n/);
 });
 

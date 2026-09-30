@@ -38,6 +38,7 @@ sealed record FormatOptions
     public string BicepImportSpacing { get; init; } = "compact";
     public string BicepUnionLayout { get; init; } = "auto";
     public string BicepConditionalHeader { get; init; } = "inline";
+    public string BicepIfConditionLayout { get; init; } = "inline";
     public string BicepLogicalCallLayout { get; init; } = "inline";
     public string BicepLoopLayout { get; init; } = "auto";
     public string BicepImportMemberOrder { get; init; } = "preserve";
@@ -79,6 +80,10 @@ sealed record FormatOptions
 
     public void Validate()
     {
+        if (BicepIfConditionLayout is not ("inline" or "wrap"))
+        {
+            throw new FormatException("bicepIfConditionLayout must be inline or wrap.");
+        }
         if (BicepLogicalCallLayout is not ("inline" or "wrap"))
         {
             throw new FormatException("bicepLogicalCallLayout must be inline or wrap.");

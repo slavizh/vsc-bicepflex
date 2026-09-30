@@ -105,8 +105,10 @@ cannot arbitrarily wrap. Calls inside `&&`/`||` conditions stay inline by
 default, even when the condition exceeds the width target, so logical clauses
 remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow
 width-based call wrapping instead; comments and multiline literals are never
-flattened to force a call inline. Conditional resource/module headers keep `if`
-on the declaration line even beyond the width target. Existing comments or
+flattened to force a call inline. Other calls inside `if` conditions also stay
+inline by default; `bicepFlex.bicepIfConditionLayout: "wrap"` allows them to
+wrap. Conditional resource/module headers keep `if` on the declaration line
+even beyond the width target. Existing comments or
 directives that make that layout unsafe take precedence. Long `@description(...)` decorators
 are exempt from the width target. Strings and ordinary comments are not reflowed;
 trailing comments stay inline. Extra same-line whitespace between syntax tokens
@@ -114,10 +116,13 @@ is reduced to one space without changing indentation, strings, comments, or
 ignored declarations. Unnecessary quotes on identifier property names
 and parentheses around a single lambda parameter are removed.
 
-Object-producing loops keep `[for ...: {` or `[for ...: if (...) {` on the
-declaration line when the complete header fits `printWidth`, indent the body once,
-and close with `}]`. Longer headers retain the expanded bracket layout. Comments
-at the bracket boundaries are preserved rather than moved to force compaction.
+Object-producing loops keep `[for ...: {` on the declaration line when the
+complete header fits `printWidth`. Conditional loops keep
+`[for ...: if (...) {` inline even beyond that width by default; set
+`bicepIfConditionLayout: "wrap"` to use the width target. Both forms indent the
+body once and close with `}]`. `bicepLoopLayout: "expanded"` retains expanded
+brackets. Comments at bracket boundaries and inside calls are preserved rather
+than moved to force compaction.
 
 ### Line endings and multiline strings
 

@@ -79,6 +79,7 @@
   "bicepImportSpacing": "compact",
   "bicepUnionLayout": "auto",
   "bicepConditionalHeader": "inline",
+  "bicepIfConditionLayout": "inline",
   "bicepLogicalCallLayout": "inline",
   "bicepLoopLayout": "auto",
   "bicepImportMemberOrder": "preserve",

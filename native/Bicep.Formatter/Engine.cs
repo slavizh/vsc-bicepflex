@@ -58,9 +58,9 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var formatted = PrettyPrinterV2.PrintValid(rewritten, options.Printer);
 
         formatted = Finish(formatted, ignored);
-        if (options.BicepLogicalCallLayout == "inline")
+        if (options.BicepIfConditionLayout == "inline" || options.BicepLogicalCallLayout == "inline")
         {
-            formatted = InlineLogicalCalls(formatted, ignored.Keys.ToHashSet());
+            formatted = InlineConditionCalls(formatted, ignored.Keys.ToHashSet());
         }
         formatted = NormalizeTernaryIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
@@ -282,7 +282,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             .Where(t => t.Type != SyntaxTriviaType.Whitespace && t.Text.Contains('\n')).Select(t => t.Span))
         .ToArray();
 
-    private string InlineLogicalCalls(string source, HashSet<string> ignored)
+    private string InlineConditionCalls(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
         var protectedSpans = ProtectedSpans(tree, ignored);
@@ -294,13 +294,16 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 node.Span.Position >= expression.Span.Position &&
                 node.Span.GetEndPosition() <= expression.Span.GetEndPosition() &&
                 node.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd).ToArray();
-            if (logical.Length == 0) continue;
             foreach (var call in tree.Nodes.Where(node =>
                 node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
-                logical.Any(binary => binary.Span.Position <= node.Span.Position &&
-                    binary.Span.GetEndPosition() >= node.Span.GetEndPosition()) &&
+                node.Span.Position >= expression.Span.Position &&
+                node.Span.GetEndPosition() <= expression.Span.GetEndPosition() &&
                 source.AsSpan(node.Span.Position, node.Span.Length).Contains('\n')))
             {
+                var inLogical = logical.Any(binary => binary.Span.Position <= call.Span.Position &&
+                    binary.Span.GetEndPosition() >= call.Span.GetEndPosition());
+                if (inLogical ? options.BicepLogicalCallLayout != "inline" : options.BicepIfConditionLayout != "inline")
+                    continue;
                 if (changes.Any(edit => edit.Start <= call.Span.Position &&
                     edit.Start + edit.Length >= call.Span.GetEndPosition()) ||
                     SyntaxTree.HasComments(call) ||
@@ -492,10 +495,15 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             var prefix = source[lineStart..openEnd];
             var header = source[loop.ForKeyword.Span.Position..body.OpenBrace.Span.GetEndPosition()];
             if (header.Contains('\n')) continue;
+            var spaceBeforeColon = loop.Body is IfConditionSyntax && loop.Expression is ParenthesizedExpressionSyntax &&
+                loop.Expression.Span.GetEndPosition() == loop.Colon.Span.Position;
             var width = (prefix + header).Replace("\t", new string(' ', options.TabWidth)).Length -
-                dedents.GetValueOrDefault(lineStart) * options.TabWidth;
-            if (width > options.PrintWidth) continue;
+                dedents.GetValueOrDefault(lineStart) * options.TabWidth + (spaceBeforeColon ? 1 : 0);
+            if (width > options.PrintWidth &&
+                (loop.Body is not IfConditionSyntax || options.BicepIfConditionLayout != "inline")) continue;
 
+            if (spaceBeforeColon)
+                changes.Add(new(loop.Colon.Span.Position, 0, " "));
             changes.Add(new(openEnd, openGap.Length, ""));
             changes.Add(new(closeStart, closeGap.Length, ""));
             // Remove only structural indentation. Multiline literal/comment contents

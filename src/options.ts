@@ -230,6 +230,11 @@ export const options = {
     ["inline", "auto", "next-line"],
     "inline",
   ),
+  bicepIfConditionLayout: choice(
+    "Keep calls in if conditions inline and compact conditional object-loop headers beyond the width target, or allow width-based wrapping.",
+    ["inline", "wrap"],
+    "inline",
+  ),
   bicepLogicalCallLayout: choice(
     "Keep calls in logical if conditions inline for readability, or wrap their arguments to the width target.",
     ["inline", "wrap"],
