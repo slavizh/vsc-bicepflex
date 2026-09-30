@@ -135,6 +135,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         if (options.BicepLoopLayout != "expanded")
         {
             formatted = CompactObjectLoops(formatted, ignored.Keys.ToHashSet());
+            formatted = CompactExpressionLoops(formatted, ignored.Keys.ToHashSet());
         }
         formatted = NormalizeInlineSpacing(formatted, ignored.Keys.ToHashSet());
         var final = Parse(formatted);
@@ -736,6 +737,61 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 length += indent.Length;
             }
             if (length > 0) changes.Add(new(start, length, ""));
+        }
+        return TextEdit.Apply(source, changes);
+    }
+
+    private sealed class InlineObjectArguments : SyntaxRewriteVisitor
+    {
+        protected override SyntaxBase RewriteInternal(SyntaxBase syntax)
+        {
+            var rewritten = base.RewriteInternal(syntax);
+            return rewritten is ObjectSyntax obj
+                ? new ObjectSyntax(obj.OpenBrace,
+                    obj.Children.Where(node => node is not Token { Type: TokenType.NewLine }),
+                    obj.CloseBrace)
+                : rewritten;
+        }
+    }
+
+    private string CompactExpressionLoops(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var changes = new List<TextEdit>();
+        foreach (var loop in tree.Nodes.OfType<ForSyntax>())
+        {
+            if (loop.Body is not FunctionCallSyntax and not InstanceFunctionCallSyntax ||
+                options.BicepLoopLayout == "preserve" &&
+                !authorCompactLoops.GetValueOrDefault(tree.Path(loop)) ||
+                SyntaxTree.HasComments(loop) ||
+                protectedSpans.Any(span => span.Position < loop.Span.GetEndPosition() &&
+                    span.GetEndPosition() > loop.Span.Position)) continue;
+            var before = source[loop.OpenSquare.Span.GetEndPosition()..loop.ForKeyword.Span.Position];
+            var after = source[loop.Body.Span.GetEndPosition()..loop.CloseSquare.Span.Position];
+            var header = source[loop.ForKeyword.Span.Position..loop.Body.Span.Position];
+            if (!string.IsNullOrWhiteSpace(before) || !string.IsNullOrWhiteSpace(after) ||
+                header.Contains('\n')) continue;
+            var body = options.BicepObjectLayout == "preserve"
+                ? loop.Body
+                : new InlineObjectArguments().Rewrite(loop.Body);
+            var inline = PrettyPrinterV2.PrintValid(body, options.Printer with
+            {
+                Width = int.MaxValue,
+                InsertFinalNewline = false,
+            }).TrimEnd('\r', '\n');
+            if (inline.Contains('\n')) continue;
+            var replacement = "[" + header + inline + "]";
+            var lineStart = source.LastIndexOf('\n', loop.OpenSquare.Span.Position) + 1;
+            var line = source[lineStart..loop.OpenSquare.Span.Position] + replacement;
+            if (options.BicepLoopLayout != "preserve" &&
+                line.Replace("\t", new string(' ', options.TabWidth)).Length > options.PrintWidth)
+                continue;
+            if (changes.Any(edit => edit.Start <= loop.OpenSquare.Span.Position &&
+                edit.Start + edit.Length >= loop.CloseSquare.Span.GetEndPosition()))
+                continue;
+            changes.Add(new(loop.OpenSquare.Span.Position,
+                loop.CloseSquare.Span.GetEndPosition() - loop.OpenSquare.Span.Position, replacement));
         }
         return TextEdit.Apply(source, changes);
     }

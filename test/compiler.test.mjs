@@ -38,6 +38,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "type Child={enabled:bool}\n@sealed()\n@description('Configuration.')\ntype Parent={child:Child}\nparam config Parent={child:{enabled:true}}\noutput enabled bool=config.child.enabled\n",
       "param name string='world'\noutput text string='''\n  hello  \n\n    world\n'''\noutput greeting string='\\u{4e16}\\u{754c} ${name}'\n",
       "@maxLength(20)\n@description('Name.')\n@minLength(3)\nparam name string='example'\noutput name string=name\n",
+      "param apiApps array=[{name:'app'}]\nvar apiAppsRes=[for apiApp in apiApps: {outputs:{siteProperties:{name:apiApp.name},slots:[]}}]\noutput sites array=[for (apiApp,i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, {\nslots:apiAppsRes[i].outputs.slots\n})]\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

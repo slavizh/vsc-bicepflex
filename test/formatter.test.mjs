@@ -716,6 +716,76 @@ test("module loops use compact headers and close brackets together", async () =>
   assert.ok(output.endsWith("  }\n}]\n"));
 });
 
+test("fitting call-expression loops collapse their object argument and array brackets", async () => {
+  const source =
+    "output apiApps array = [for (apiApp, i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, {\n" +
+    "  slots: apiAppsRes[i].outputs.slots\n" +
+    "})]\n";
+  const compact =
+    "output apiApps array = [for (apiApp, i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, { slots: apiAppsRes[i].outputs.slots })]\n";
+  assert.equal(await stable(source), compact);
+  assert.equal(
+    await stable(
+      "param names array=[]\noutput upper array=[for name in names: toUpper(name)]\n",
+    ),
+    "param names array = []\n\noutput upper array = [for name in names: toUpper(name)]\n",
+  );
+  assert.equal(
+    await stable(
+      source
+        .replaceAll("apiApps", "logicAppsStandard")
+        .replaceAll("apiApp", "logicApp")
+        .replace(
+          "logicAppsStandardRes[i].outputs.slots",
+          "logicAppsStandardRes[0].outputs.slots",
+        ),
+    ),
+    compact
+      .replaceAll("apiApps", "logicAppsStandard")
+      .replaceAll("apiApp", "logicApp")
+      .replace(
+        "logicAppsStandardRes[i].outputs.slots",
+        "logicAppsStandardRes[0].outputs.slots",
+      ),
+  );
+  assert.match(
+    await stable(source, { printWidth: compact.trimEnd().length - 1 }),
+    / = \[\n  for \(apiApp, i\)/,
+  );
+  assert.equal(
+    await stable(source, { printWidth: compact.trimEnd().length }),
+    compact,
+  );
+  assert.equal(
+    await stable(source, { bicepLoopLayout: "preserve", printWidth: 40 }),
+    compact,
+  );
+  assert.match(
+    await stable(source, { bicepLoopLayout: "expanded" }),
+    / = \[\n  for \(apiApp, i\)/,
+  );
+  assert.match(
+    await stable(source, { bicepObjectLayout: "preserve" }),
+    /union\(apiAppsRes\[i\]\.outputs\.siteProperties, \{\n/,
+  );
+  const commented = source.replace(
+    "  slots:",
+    "  // keep attached to slots\n  slots:",
+  );
+  assert.match(await stable(commented), / = \[\n  for \(apiApp, i\)/);
+  assert.equal(
+    await stable("// prettier-ignore\n" + source),
+    "// prettier-ignore\n" + source,
+  );
+  const multilineLiteral = source
+    .replace(
+      "apiAppsRes[i].outputs.slots",
+      "'''\\n    keep indentation\\n  '''",
+    )
+    .replaceAll("\\n", "\n");
+  assert.match(await stable(multilineLiteral), / = \[\n  for \(apiApp, i\)/);
+});
+
 test("logical conditions keep nested function calls inline unless wrapping is requested", async () => {
   const input =
     "param resourceGroups array=[]\nparam defaultResourceGroup object={}\n" +
