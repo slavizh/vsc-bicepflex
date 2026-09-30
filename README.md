@@ -91,7 +91,9 @@ Consecutive import declarations form a compact block without blank lines between
 them. A blank line separates that block from other declarations. Comment sections
 are preserved; `bicepDeclarationSpacing: "preserve"` retains author spacing instead.
 
-Long calls and ternaries wrap at grammar-valid positions. Binary expressions
+Long calls and ternaries wrap at grammar-valid positions. Nested ternary
+continuations advance by one indentation level (two spaces by default) per
+branch, including attached comments. Binary expressions
 cannot arbitrarily wrap. Calls inside `&&`/`||` conditions stay inline by
 default, even when the condition exceeds the width target, so logical clauses
 remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow

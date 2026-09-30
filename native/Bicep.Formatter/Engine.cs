@@ -62,6 +62,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         {
             formatted = InlineLogicalCalls(formatted, ignored.Keys.ToHashSet());
         }
+        formatted = IndentNestedTernaries(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
         if (options.BicepLoopLayout != "expanded")
         {
@@ -278,6 +279,41 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 if (!inline.Contains('\n'))
                     changes.Add(new(call.Span.Position, call.Span.Length, inline));
             }
+        }
+        return TextEdit.Apply(source, changes);
+    }
+
+    private string IndentNestedTernaries(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var indent = options.UseTabs ? "\t" : new string(' ', options.TabWidth);
+        if (indent.Length == 0) return source;
+        var dedents = new Dictionary<int, int>();
+        foreach (var ternary in tree.Nodes.OfType<TernaryOperationSyntax>())
+        {
+            var parent = tree.Parents.GetValueOrDefault(ternary);
+            while (parent is not null && parent is not TernaryOperationSyntax)
+                parent = tree.Parents.GetValueOrDefault(parent);
+            if (parent is null ||
+                source.LastIndexOf('\n', ternary.ConditionExpression.Span.Position) ==
+                source.LastIndexOf('\n', ternary.Question.Span.Position)) continue;
+            for (var newline = source.IndexOf('\n', ternary.ConditionExpression.Span.GetEndPosition());
+                newline >= 0 && newline + 1 < ternary.Span.GetEndPosition();
+                newline = source.IndexOf('\n', newline + 1))
+            {
+                var start = newline + 1;
+                if (protectedSpans.Any(span => span.Position < start && span.GetEndPosition() > start)) continue;
+                dedents[start] = dedents.GetValueOrDefault(start) + 1;
+            }
+        }
+        var changes = new List<TextEdit>();
+        foreach (var (start, levels) in dedents)
+        {
+            var length = 0;
+            for (var level = 0; level < levels && source.AsSpan(start + length).StartsWith(indent); level++)
+                length += indent.Length;
+            if (length > 0) changes.Add(new(start, length, ""));
         }
         return TextEdit.Apply(source, changes);
     }

@@ -337,6 +337,60 @@ test("long calls and ternaries wrap at grammar-valid boundaries", async () => {
   );
 });
 
+test("deeply nested conditional property keeps two-space indentation", async () => {
+  const source = [
+    "param kind string",
+    "param slot object",
+    "param operatingSystem string",
+    "output site object = {",
+    "  properties: {",
+    "    siteConfig: {",
+    "      linuxFxVersion: kind == 'functionapp' && slot.functionRuntimeVersion == 0",
+    "        ? null",
+    "        : operatingSystem == 'Linux'",
+    "            ? empty(slot.linuxFxVersion)",
+    "                // javaVersion and javaContainer properties are not allowed for function apps",
+    "                ? slot.runtime =~ 'Java' && kind != 'functionapp'",
+    "                    ? slot.javaContainer =~ 'Tomcat'",
+    "                        ? slot.javaVersion == '1.8' ? 'TOMCAT|${slot.runtimeVersion}-jre8' : 'TOMCAT|${slot.runtimeVersion}-java${slot.javaVersion}'",
+    "                        : slot.javaContainer =~ 'Jboss'",
+    "                            ? 'JBOSSEAP|${slot.runtimeVersion}-java${slot.javaVersion}'",
+    "                            : slot.javaContainer =~ 'Java'",
+    "                                ? slot.javaVersion == '1.8' ? 'JAVA|8-jre8' : 'JAVA|${slot.javaVersion}-java${slot.javaVersion}'",
+    "                                : 'JAVA|${slot.runtimeVersion}'",
+    "                    // When runtime is provided, runtimeVersion is required for all runtimes except Docker and Custom",
+    "                    : slot.runtime =~ 'Sidecar'",
+    "                        ? 'sitecontainers'",
+    "                        : slot.runtime =~ 'Docker'",
+    "                            ? 'DOCKER|${slot.dockerContainerName}'",
+    "                            : !empty(slot.runtime) && slot.runtime != 'Custom' ? '${toUpper(slot.runtime)}|${slot.runtimeVersion}' : null",
+    "                : slot.linuxFxVersion",
+    "            : null",
+    "    }",
+    "  }",
+    "}",
+    "",
+  ].join("\n");
+  const output = await stable(source, { tabWidth: 2 });
+  assert.match(output, /\n {6}linuxFxVersion:/);
+  assert.match(output, /\n {8}\? null\n/);
+  assert.match(output, /\n {10}\? empty\(slot\.linuxFxVersion\)/);
+  assert.match(output, /\n {12}\/\/ javaVersion/);
+  assert.match(output, /\n {12}\? slot\.runtime =~ 'Java'/);
+  assert.match(output, /\n {14}\? slot\.javaContainer =~ 'Tomcat'/);
+  assert.match(output, /\n {16}\? slot\.javaVersion == '1\.8'/);
+  assert.match(output, /\n {14}\/\/ When runtime is provided/);
+  assert.match(output, /\n {14}: slot\.runtime =~ 'Sidecar'/);
+  assert.match(output, /\n {12}: slot\.linuxFxVersion/);
+  assert.match(output, /\n {10}: null\n/);
+  const fourSpaces = await stable(source, { tabWidth: 4 });
+  assert.match(fourSpaces, /\n {12}linuxFxVersion:/);
+  assert.match(fourSpaces, /\n {20}\? empty\(slot\.linuxFxVersion\)/);
+  const tabs = await stable(source, { tabWidth: 4, useTabs: true });
+  assert.match(tabs, /\n\t{3}linuxFxVersion:/);
+  assert.match(tabs, /\n\t{5}\? empty\(slot\.linuxFxVersion\)/);
+});
+
 const resourceGroupLoopHeader =
   "resource resourceGroupsRes 'Microsoft.Resources/resourceGroups@2025-04-01' = [for resourceGroup in resourceGroups: if (union(defaultResourceGroup, resourceGroup).create) {";
 const resourceGroupLoop =

@@ -4,6 +4,8 @@
 
 - Keep function calls within `&&`/`||` conditions inline by default; add
   `bicepLogicalCallLayout: "wrap"` for width-based argument wrapping.
+- Indent nested ternary branches by one configured indentation level rather
+  than two, including branch comments.
 - Show source line and branch coverage totals in the GitHub Actions run summary.
 
 ## 0.2.0 (first release)
