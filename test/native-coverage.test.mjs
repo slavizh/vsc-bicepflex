@@ -88,6 +88,7 @@ test("native option validation identifies invalid types, ranges, names, and deco
     [{ bicepTabWidth: 1001 }, /bicepTabWidth/],
     [{ bicepPrintWidth: -1 }, /bicepPrintWidth/],
     [{ bicepIndentStyle: "mixed" }, /bicepIndentStyle/],
+    [{ bicepLogicalCallLayout: "invalid" }, /bicepLogicalCallLayout/],
     [{ printWidth: 0 }, /printWidth/],
     [{ tabWidth: 1001 }, /tabWidth/],
     [{ bicepDeclarationOrder: null }, /Ordering settings/],

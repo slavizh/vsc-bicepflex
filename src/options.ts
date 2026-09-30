@@ -225,6 +225,11 @@ export const options = {
     ["inline", "auto", "next-line"],
     "inline",
   ),
+  bicepLogicalCallLayout: choice(
+    "Keep calls in logical if conditions inline for readability, or wrap their arguments to the width target.",
+    ["inline", "wrap"],
+    "inline",
+  ),
   bicepLoopLayout: choice(
     "Compact object-loop headers when they fit or retain expanded brackets.",
     ["auto", "expanded"],

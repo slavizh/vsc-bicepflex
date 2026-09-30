@@ -118,6 +118,7 @@ const settingsOrder = [
   "bicepImportSpacing",
   "bicepUnionLayout",
   "bicepConditionalHeader",
+  "bicepLogicalCallLayout",
   "bicepLoopLayout",
   "bicepQuoteProperties",
   "bicepLambdaParentheses",
@@ -226,6 +227,10 @@ const choiceDescriptions = {
     inline: "keep direct resource/module if headers inline",
     auto: "move if to the next line only when the header exceeds width",
     "next-line": "always put if on the next line",
+  },
+  bicepLogicalCallLayout: {
+    inline: "keep calls within && and || conditions on one line",
+    wrap: "wrap call arguments in logical conditions to the width target",
   },
   bicepLoopLayout: {
     auto: "compact object-loop headers when they fit",

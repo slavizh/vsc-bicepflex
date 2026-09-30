@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (unreleased)
+
+- Keep function calls within `&&`/`||` conditions inline by default; add
+  `bicepLogicalCallLayout: "wrap"` for width-based argument wrapping.
+- Show source line and branch coverage totals in the GitHub Actions run summary.
+
 ## 0.2.0 (first release)
 
 - Distribute a standalone VS Code formatter that bundles Prettier, the Bicep

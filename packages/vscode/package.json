@@ -2,7 +2,7 @@
   "name": "bicepflex",
   "displayName": "BicepFlex",
   "description": "Standalone, configurable Bicep and Bicep parameters formatter backed by the Bicep compiler.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "publisher": "slavizh",
   "license": "MIT",
@@ -498,6 +498,20 @@
           ],
           "order": 30
         },
+        "bicepFlex.bicepLogicalCallLayout": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "wrap"
+          ],
+          "default": "inline",
+          "description": "Keep calls in logical if conditions inline for readability, or wrap their arguments to the width target. Choices: \"inline\" — keep calls within && and || conditions on one line; \"wrap\" — wrap call arguments in logical conditions to the width target. Default: \"inline\".",
+          "enumDescriptions": [
+            "keep calls within && and || conditions on one line",
+            "wrap call arguments in logical conditions to the width target"
+          ],
+          "order": 31
+        },
         "bicepFlex.bicepLoopLayout": {
           "type": "string",
           "enum": [
@@ -510,7 +524,7 @@
             "compact object-loop headers when they fit",
             "retain expanded native brackets"
           ],
-          "order": 31
+          "order": 32
         },
         "bicepFlex.bicepQuoteProperties": {
           "type": "string",
@@ -524,7 +538,7 @@
             "remove optional quotes around identifier keys",
             "retain source quoting"
           ],
-          "order": 32
+          "order": 33
         },
         "bicepFlex.bicepLambdaParentheses": {
           "type": "string",
@@ -540,7 +554,7 @@
             "add parentheses around one lambda parameter",
             "retain the source choice"
           ],
-          "order": 33
+          "order": 34
         },
         "bicepFlex.bicepDescriptionWidth": {
           "type": "string",
@@ -554,7 +568,7 @@
             "leave descriptions inline regardless of width",
             "wrap long description calls without reflowing their strings"
           ],
-          "order": 34
+          "order": 35
         },
         "bicepFlex.bicepDependencyOrder": {
           "type": "string",
@@ -568,7 +582,7 @@
             "choose the earliest currently ready declaration",
             "pull prerequisites before the earliest consumer"
           ],
-          "order": 35
+          "order": 36
         },
         "bicepFlex.bicepUnusedDeclarations": {
           "type": "string",
@@ -582,7 +596,7 @@
             "keep unused variables and existing resources in place",
             "allow them to move within their sections"
           ],
-          "order": 36
+          "order": 37
         },
         "bicepFlex.bicepSectionComments": {
           "type": "string",
@@ -596,7 +610,7 @@
             "keep blank-line-separated headings in place",
             "move headings with the next declaration"
           ],
-          "order": 37
+          "order": 38
         },
         "bicepFlex.bicepIgnoredDeclarations": {
           "type": "string",
@@ -610,7 +624,7 @@
             "allow ignored declarations to move without changing their text",
             "keep ignored declarations in place"
           ],
-          "order": 38
+          "order": 39
         },
         "bicepFlex.bicepImportMemberOrder": {
           "type": "string",
@@ -624,7 +638,7 @@
             "retain imported symbol order",
             "sort by original imported name"
           ],
-          "order": 39
+          "order": 40
         },
         "bicepFlex.bicepTypeMemberOrder": {
           "type": "string",
@@ -638,7 +652,7 @@
             "retain object-type member order",
             "place syntactically nullable members last"
           ],
-          "order": 40
+          "order": 41
         }
       }
     },

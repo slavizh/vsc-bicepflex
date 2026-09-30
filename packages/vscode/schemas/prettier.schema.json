@@ -467,6 +467,19 @@
             "always put if on the next line"
           ]
         },
+        "bicepLogicalCallLayout": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "wrap"
+          ],
+          "default": "inline",
+          "description": "Keep calls in logical if conditions inline for readability, or wrap their arguments to the width target. Choices: \"inline\" — keep calls within && and || conditions on one line; \"wrap\" — wrap call arguments in logical conditions to the width target. Default: \"inline\".",
+          "enumDescriptions": [
+            "keep calls within && and || conditions on one line",
+            "wrap call arguments in logical conditions to the width target"
+          ]
+        },
         "bicepLoopLayout": {
           "type": "string",
           "enum": [
@@ -594,6 +607,7 @@
               "bicepImportSpacing",
               "bicepUnionLayout",
               "bicepConditionalHeader",
+              "bicepLogicalCallLayout",
               "bicepLoopLayout",
               "bicepImportMemberOrder",
               "bicepTypeMemberOrder"

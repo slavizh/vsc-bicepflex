@@ -58,6 +58,10 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var formatted = PrettyPrinterV2.PrintValid(rewritten, options.Printer);
 
         formatted = Finish(formatted, ignored);
+        if (options.BicepLogicalCallLayout == "inline")
+        {
+            formatted = InlineLogicalCalls(formatted, ignored.Keys.ToHashSet());
+        }
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
         if (options.BicepLoopLayout != "expanded")
         {
@@ -241,6 +245,42 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         .Concat(tree.Tokens.SelectMany(t => t.LeadingTrivia.Concat(t.TrailingTrivia))
             .Where(t => t.Type != SyntaxTriviaType.Whitespace && t.Text.Contains('\n')).Select(t => t.Span))
         .ToArray();
+
+    private string InlineLogicalCalls(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var changes = new List<TextEdit>();
+        foreach (var condition in tree.Nodes.OfType<IfConditionSyntax>())
+        {
+            var expression = condition.ConditionExpression;
+            var logical = tree.Nodes.OfType<BinaryOperationSyntax>().Where(node =>
+                node.Span.Position >= expression.Span.Position &&
+                node.Span.GetEndPosition() <= expression.Span.GetEndPosition() &&
+                node.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd).ToArray();
+            if (logical.Length == 0) continue;
+            foreach (var call in tree.Nodes.Where(node =>
+                node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
+                logical.Any(binary => binary.Span.Position <= node.Span.Position &&
+                    binary.Span.GetEndPosition() >= node.Span.GetEndPosition()) &&
+                source.AsSpan(node.Span.Position, node.Span.Length).Contains('\n')))
+            {
+                if (changes.Any(edit => edit.Start <= call.Span.Position &&
+                    edit.Start + edit.Length >= call.Span.GetEndPosition()) ||
+                    SyntaxTree.HasComments(call) ||
+                    protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
+                        span.GetEndPosition() > call.Span.Position)) continue;
+                var inline = PrettyPrinterV2.PrintValid(call, options.Printer with
+                {
+                    Width = int.MaxValue,
+                    InsertFinalNewline = false,
+                }).TrimEnd('\r', '\n');
+                if (!inline.Contains('\n'))
+                    changes.Add(new(call.Span.Position, call.Span.Length, inline));
+            }
+        }
+        return TextEdit.Apply(source, changes);
+    }
 
     private string ApplyHeaderPolicies(string source, HashSet<string> ignored)
     {

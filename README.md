@@ -92,9 +92,13 @@ them. A blank line separates that block from other declarations. Comment section
 are preserved; `bicepDeclarationSpacing: "preserve"` retains author spacing instead.
 
 Long calls and ternaries wrap at grammar-valid positions. Binary expressions
-cannot arbitrarily wrap. Conditional resource/module headers keep `if` on the
-declaration line even beyond the width target. Existing comments or directives
-that make that layout unsafe take precedence. Long `@description(...)` decorators
+cannot arbitrarily wrap. Calls inside `&&`/`||` conditions stay inline by
+default, even when the condition exceeds the width target, so logical clauses
+remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow
+width-based call wrapping instead; comments and multiline literals are never
+flattened to force a call inline. Conditional resource/module headers keep `if`
+on the declaration line even beyond the width target. Existing comments or
+directives that make that layout unsafe take precedence. Long `@description(...)` decorators
 are exempt from the width target. Strings and ordinary comments are not reflowed;
 trailing comments stay inline. Unnecessary quotes on identifier property names
 and parentheses around a single lambda parameter are removed.
@@ -286,8 +290,9 @@ npm run test:coverage
 
 `npm run test:coverage` instruments the TypeScript formatter, the extension
 inside a real VS Code host, and the managed bridge, then prints separate line
-and branch totals. CI uploads the source-level summaries and native Cobertura
-report. `npm run test:coverage:enforce` requires 100% of both metrics in all
+and branch totals. CI shows the totals in the Actions run summary and uploads
+the source-level summaries and native Cobertura report as the
+`production-coverage` artifact. `npm run test:coverage:enforce` requires 100% of both metrics in all
 three components; the suite does not yet meet that target. Coverage is a
 measurement of exercised paths, not a guarantee of correct formatting for
 every Bicep input.

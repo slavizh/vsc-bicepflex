@@ -33,8 +33,8 @@ npm run test:coverage
 `npm run test:coverage` restores the pinned .NET coverage tool and measures
 line and branch coverage for the TypeScript engine, the VS Code extension in
 an isolated host, and the managed bridge. Reports are written under
-`artifacts/coverage`, with component totals in `summary.json`, and uploaded
-by CI. Run `npm run test:coverage:enforce`
+`artifacts/coverage`, with component totals in `summary.json`, shown in the
+Actions run summary and uploaded by CI. Run `npm run test:coverage:enforce`
 to require 100% line and branch coverage in each production component. Coverage
 is not yet at that threshold, so this strict command currently fails; CI
 reports the actual results rather than misrepresenting them as complete.

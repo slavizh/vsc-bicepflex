@@ -14,7 +14,21 @@ async function run() {
   const configurationOptions = Object.keys(contributed).filter((key) =>
     key.startsWith("bicepFlex."),
   );
-  assert.equal(configurationOptions.length, 40);
+  const schema = JSON.parse(
+    await fs.readFile(
+      path.join(extension.extensionPath, "schemas", "prettier.schema.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    configurationOptions.slice().sort(),
+    [
+      "bicepFlex.preset",
+      ...Object.keys(schema.$defs.configuration.properties)
+        .filter((name) => name !== "overrides")
+        .map((name) => `bicepFlex.${name}`),
+    ].sort(),
+  );
   assert.deepEqual(
     configurationOptions.map((key) => contributed[key].order),
     Array.from(

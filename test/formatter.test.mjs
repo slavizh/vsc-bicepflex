@@ -376,6 +376,41 @@ test("module loops use compact headers and close brackets together", async () =>
   assert.ok(output.endsWith("  }\n}]\n"));
 });
 
+test("logical conditions keep nested function calls inline unless wrapping is requested", async () => {
+  const input =
+    "param resourceGroups array=[]\nparam defaultResourceGroup object={}\n" +
+    "module sites 'modules/sites.bicep' = [for (resourceGroup, i) in resourceGroups: if (!empty(union(defaultResourceGroup, resourceGroup).webApps) || !empty(union(defaultResourceGroup, resourceGroup).functionApps) || !empty(union(defaultResourceGroup, resourceGroup).logicAppsStandard) || !empty(union(defaultResourceGroup, resourceGroup).apiApps)) {\n" +
+    "name:'sites-${i}'\nparams:{}\n}]\n";
+  const inline = await stable(input);
+  assert.match(
+    inline,
+    /!empty\(union\(defaultResourceGroup, resourceGroup\)\.logicAppsStandard\)/,
+  );
+  assert.doesNotMatch(inline, /union\(\s*\n/);
+  const wrapped = await stable(input, { bicepLogicalCallLayout: "wrap" });
+  assert.match(wrapped, /union\(\s*\n\s*defaultResourceGroup,/);
+  const conjunction = input.replaceAll(" || ", " && ");
+  assert.doesNotMatch(await stable(conjunction), /union\(\s*\n/);
+  assert.match(
+    await stable(conjunction, { bicepLogicalCallLayout: "wrap" }),
+    /union\(\s*\n/,
+  );
+  const commented = input.replace(
+    "union(defaultResourceGroup, resourceGroup).logicAppsStandard",
+    "union(defaultResourceGroup, /* retain */ resourceGroup).logicAppsStandard",
+  );
+  assert.match(await stable(commented), /\/\* retain \*\//);
+  assert.doesNotMatch(
+    await stable(
+      "output value object = { result: union(defaultResourceGroup, resourceGroup) }\n",
+      {
+        printWidth: 30,
+      },
+    ),
+    /result: union\(defaultResourceGroup, resourceGroup\)/,
+  );
+});
+
 test("nested object loops compact consistently with tabs and spaces", async () => {
   const source =
     "output items array=[for x in ['one']:{nested:[for y in ['two']:{value:'${x}-${y}'}]}]\n";
