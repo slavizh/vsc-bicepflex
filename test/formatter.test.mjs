@@ -809,6 +809,42 @@ test("fitting call-expression loops collapse their object argument and array bra
   assert.match(await stable(multilineLiteral), / = \[\n  for \(apiApp, i\)/);
 });
 
+test("fitting property-value calls collapse object arguments without brace padding", async () => {
+  const source =
+    "output plan object = {\n" +
+    "  isHyperV: union({ hyperV : false }, webAppServicePlans[i].properties).hyperV\n" +
+    "}\n";
+  const compact =
+    "output plan object = {\n" +
+    "  isHyperV: union({hyperV: false}, webAppServicePlans[i].properties).hyperV\n" +
+    "}\n";
+  assert.equal(await stable(source), compact);
+  const line = compact.split("\n")[1];
+  assert.equal(await stable(source, { printWidth: line.length }), compact);
+  assert.match(
+    await stable(source, { printWidth: line.length - 1 }),
+    /isHyperV: union\(\n/,
+  );
+  assert.equal(await stable(source, { bicepObjectLayout: "auto" }), compact);
+  assert.match(
+    await stable(
+      source.replace("{ hyperV : false }", "{\n    hyperV: false\n  }"),
+      { bicepObjectLayout: "preserve" },
+    ),
+    /isHyperV: union\(\n/,
+  );
+  assert.match(
+    await stable(
+      source.replace("hyperV : false", "hyperV: /* keep comment */ false"),
+    ),
+    /\/\* keep comment \*\//,
+  );
+  assert.equal(
+    await stable("// prettier-ignore\n" + source),
+    "// prettier-ignore\n" + source,
+  );
+});
+
 test("logical conditions keep nested function calls inline unless wrapping is requested", async () => {
   const input =
     "param resourceGroups array=[]\nparam defaultResourceGroup object={}\n" +

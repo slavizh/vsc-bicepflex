@@ -132,6 +132,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         }
         formatted = NormalizeTernaryIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
+        formatted = CompactObjectArgumentCalls(formatted, ignored.Keys.ToHashSet());
         if (options.BicepLoopLayout != "expanded")
         {
             formatted = CompactObjectLoops(formatted, ignored.Keys.ToHashSet());
@@ -777,6 +778,62 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         return TextEdit.Apply(expression, changes);
     }
 
+    private string? RenderCompactCall(SyntaxBase call)
+    {
+        var body = options.BicepObjectLayout == "preserve"
+            ? call
+            : new InlineObjectArguments().Rewrite(call);
+        var inline = PrettyPrinterV2.PrintValid(body, options.Printer with
+        {
+            Width = int.MaxValue,
+            InsertFinalNewline = false,
+        }).TrimEnd('\r', '\n');
+        return inline.Contains('\n') ? null : RemoveInlineObjectBracePadding(inline);
+    }
+
+    private string CompactObjectArgumentCalls(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var changes = new List<TextEdit>();
+        foreach (var call in tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax))
+        {
+            var hasObjectArgument = call switch
+            {
+                FunctionCallSyntax function => function.Arguments.Any(arg => arg.Expression is ObjectSyntax),
+                InstanceFunctionCallSyntax function => function.Arguments.Any(arg => arg.Expression is ObjectSyntax),
+                _ => false,
+            };
+            if (!hasObjectArgument || SyntaxTree.HasComments(call) ||
+                protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
+                    span.GetEndPosition() > call.Span.Position) ||
+                changes.Any(edit => edit.Start <= call.Span.Position &&
+                    edit.Start + edit.Length >= call.Span.GetEndPosition())) continue;
+            var ancestor = call;
+            var logical = false;
+            while (tree.Parents.TryGetValue(ancestor, out ancestor))
+            {
+                if (ancestor is BinaryOperationSyntax binary &&
+                    binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd) logical = true;
+                if (ancestor is IfConditionSyntax) break;
+            }
+            if (ancestor is IfConditionSyntax &&
+                (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) == "preserve" &&
+                authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true) continue;
+            var inline = RenderCompactCall(call);
+            if (inline is null || inline == SyntaxTree.Slice(source, call)) continue;
+            var start = source.LastIndexOf('\n', call.Span.Position) + 1;
+            var end = source.IndexOf('\n', call.Span.GetEndPosition());
+            if (end < 0) end = source.Length;
+            var line = source[start..call.Span.Position] + inline +
+                source[call.Span.GetEndPosition()..end];
+            if (line.Replace("\t", new string(' ', options.TabWidth)).Length > options.PrintWidth)
+                continue;
+            changes.Add(new(call.Span.Position, call.Span.Length, inline));
+        }
+        return TextEdit.Apply(source, changes);
+    }
+
     private string CompactExpressionLoops(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
@@ -795,16 +852,8 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             var header = source[loop.ForKeyword.Span.Position..loop.Body.Span.Position];
             if (!string.IsNullOrWhiteSpace(before) || !string.IsNullOrWhiteSpace(after) ||
                 header.Contains('\n')) continue;
-            var body = options.BicepObjectLayout == "preserve"
-                ? loop.Body
-                : new InlineObjectArguments().Rewrite(loop.Body);
-            var inline = PrettyPrinterV2.PrintValid(body, options.Printer with
-            {
-                Width = int.MaxValue,
-                InsertFinalNewline = false,
-            }).TrimEnd('\r', '\n');
-            if (inline.Contains('\n')) continue;
-            inline = RemoveInlineObjectBracePadding(inline);
+            var inline = RenderCompactCall(loop.Body);
+            if (inline is null) continue;
             var replacement = "[" + header + inline + "]";
             var lineStart = source.LastIndexOf('\n', loop.OpenSquare.Span.Position) + 1;
             var line = source[lineStart..loop.OpenSquare.Span.Position] + replacement;

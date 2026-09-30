@@ -5,6 +5,8 @@
 - Collapse fitting call-expression loops and their safe object arguments to
   one line with no interior brace padding instead of only expanding them;
   preserve comments and explicit layout choices.
+- Compact fitting calls with object arguments in property values, including
+  property access after the call, without losing the tight brace layout.
 - Add source-faithful `"preserve"` choices for applicable object, union,
   conditional, loop, description, parameter-spacing, and declaration-placement
   policies. Existing array preservation also retains compact source layout

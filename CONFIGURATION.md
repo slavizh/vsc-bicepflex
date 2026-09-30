@@ -273,22 +273,22 @@ one level per branch; multiline string and comment contents are unchanged.
 When a `for` expression's ternary body has a wrapped condition, its `?` and
 `:` branches indent one more level than the loop-body condition continuation.
 
-| Option                    | Default         | Values and behavior                                                                                                                                                                                                  |
-| ------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bicepObjectLayout`       | `"multiline"`   | `"multiline"` expands nonempty objects/types except safe object arguments in fitting call-expression loops; `"auto"` permits compact source objects; `"preserve"` retains authored shape even beyond width when safe |
-| `bicepArrayLayout`        | `"compact"`     | `"compact"` fits primitive arrays inline; `"multiline"` expands them; `"preserve"` retains authored compact/expanded shape even beyond width when safe                                                               |
-| `bicepDeclarationSpacing` | `"separate"`    | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines; parameter/import spacing can override it  |
-| `bicepParameterSpacing`   | `"description"` | `"description"` groups plain parameters and separates described ones; `"inherit"` follows `bicepDeclarationSpacing`; `"preserve"` retains author gaps between consecutive parameters                                 |
-| `bicepImportSpacing`      | `"compact"`     | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                                                         |
-| `bicepPropertyBlankLines` | `false`         | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                                                               |
-| `bicepUnionLayout`        | `"auto"`        | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` puts every member on a line; `"preserve"` retains authored member breaks even beyond width                                                 |
-| `bicepConditionalHeader`  | `"inline"`      | `"inline"` keeps direct resource/module `if` headers inline even when long; `"auto"` moves `if` below `=` when long; `"next-line"` always moves it; `"preserve"` retains authored placement                          |
-| `bicepIfConditionLayout`  | `"inline"`      | `"inline"` keeps calls in `if` conditions inline and compacts conditional object-loop headers beyond width; `"wrap"` allows width-based wrapping; `"preserve"` retains authored call breaks                          |
-| `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls in logical conditions on one line even beyond width; `"wrap"` allows width-based argument wrapping; `"preserve"` retains authored argument breaks                                             |
-| `bicepLoopLayout`         | `"auto"`        | `"auto"` compacts fitting object-loop headers and fitting call-expression loops; `"expanded"` retains native brackets; `"preserve"` retains authored compact/expanded brackets even beyond width                     |
-| `bicepQuoteProperties`    | `"as-needed"`   | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                                                                      |
-| `bicepLambdaParentheses`  | `"avoid"`       | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                                                                    |
-| `bicepDescriptionWidth`   | `"ignore"`      | `"ignore"` leaves descriptions inline regardless of width; `"wrap"` wraps long calls without splitting strings; `"preserve"` retains authored inline/multiline shape beyond width                                    |
+| Option                    | Default         | Values and behavior                                                                                                                                                                                                 |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bicepObjectLayout`       | `"multiline"`   | `"multiline"` expands nonempty objects/types except safe object arguments in fitting calls; `"auto"` permits compact source objects; `"preserve"` retains authored shape even beyond width when safe                |
+| `bicepArrayLayout`        | `"compact"`     | `"compact"` fits primitive arrays inline; `"multiline"` expands them; `"preserve"` retains authored compact/expanded shape even beyond width when safe                                                              |
+| `bicepDeclarationSpacing` | `"separate"`    | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines; parameter/import spacing can override it |
+| `bicepParameterSpacing`   | `"description"` | `"description"` groups plain parameters and separates described ones; `"inherit"` follows `bicepDeclarationSpacing`; `"preserve"` retains author gaps between consecutive parameters                                |
+| `bicepImportSpacing`      | `"compact"`     | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                                                        |
+| `bicepPropertyBlankLines` | `false`         | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                                                              |
+| `bicepUnionLayout`        | `"auto"`        | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` puts every member on a line; `"preserve"` retains authored member breaks even beyond width                                                |
+| `bicepConditionalHeader`  | `"inline"`      | `"inline"` keeps direct resource/module `if` headers inline even when long; `"auto"` moves `if` below `=` when long; `"next-line"` always moves it; `"preserve"` retains authored placement                         |
+| `bicepIfConditionLayout`  | `"inline"`      | `"inline"` keeps calls in `if` conditions inline and compacts conditional object-loop headers beyond width; `"wrap"` allows width-based wrapping; `"preserve"` retains authored call breaks                         |
+| `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls in logical conditions on one line even beyond width; `"wrap"` allows width-based argument wrapping; `"preserve"` retains authored argument breaks                                            |
+| `bicepLoopLayout`         | `"auto"`        | `"auto"` compacts fitting object-loop headers and fitting call-expression loops; `"expanded"` retains native brackets; `"preserve"` retains authored compact/expanded brackets even beyond width                    |
+| `bicepQuoteProperties`    | `"as-needed"`   | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                                                                     |
+| `bicepLambdaParentheses`  | `"avoid"`       | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                                                                   |
+| `bicepDescriptionWidth`   | `"ignore"`      | `"ignore"` leaves descriptions inline regardless of width; `"wrap"` wraps long calls without splitting strings; `"preserve"` retains authored inline/multiline shape beyond width                                   |
 
 For width-based wrapping of nonlogical `if` conditions in project configuration:
 
@@ -307,8 +307,10 @@ flattening, and a multiline loop collection can still require expanded
 brackets. Compact conditional loops with parenthesized collections use
 `in (collection) : if (...)` spacing.
 Call-expression loops can also compact both brackets and object arguments
-when the complete line fits. Their inline object arguments have no padding
-inside braces (`{slots: slots}`); other inline objects retain native spacing.
+when the complete line fits. Fitting calls in property values similarly
+collapse object arguments, including calls followed by property access.
+These inline object arguments have no padding inside braces (`{slots: slots}`);
+other inline objects retain native spacing.
 Comments, directives, multiline literals, and
 `bicepObjectLayout: "preserve"` prevent collapsing an expanded object argument.
 `bicepLoopLayout: "expanded"` keeps these loop brackets expanded.
