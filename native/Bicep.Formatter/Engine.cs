@@ -68,6 +68,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         {
             formatted = CompactObjectLoops(formatted, ignored.Keys.ToHashSet());
         }
+        formatted = NormalizeInlineSpacing(formatted, ignored.Keys.ToHashSet());
         var final = Parse(formatted);
         var finalTree = new SyntaxTree(final.ProgramSyntax);
         if (fingerprint != finalTree.Fingerprint(final.ProgramSyntax))
@@ -97,6 +98,30 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             ? Regex.Replace(t.Text.Trim(), @"\s+", " ")
             : t.Text.ReplaceLineEndings("\n"))
         .Order(StringComparer.Ordinal);
+
+    private string NormalizeInlineSpacing(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var tokens = tree.Tokens.OrderBy(token => token.Span.Position).ToArray();
+        var changes = new List<TextEdit>();
+        for (var index = 1; index < tokens.Length; index++)
+        {
+            var previous = tokens[index - 1];
+            var current = tokens[index];
+            var start = previous.Span.GetEndPosition();
+            var length = current.Span.Position - start;
+            if (length < 2 || previous.Type == TokenType.NewLine ||
+                start > 0 && source[start - 1] == '\n' ||
+                protectedSpans.Any(span => span.Position <= start && span.GetEndPosition() >= start + length) ||
+                source.AsSpan(start, length).IndexOfAnyExcept(' ', '\t') >= 0)
+            {
+                continue;
+            }
+            changes.Add(new(start, length, " "));
+        }
+        return TextEdit.Apply(source, changes);
+    }
 
     private static Dictionary<string, string> CaptureProtected(string source, SyntaxTree tree)
     {

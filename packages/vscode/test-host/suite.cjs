@@ -91,6 +91,21 @@ async function run() {
     outcomes.push({ file, language, formatted: true });
   }
   const config = vscode.workspace.getConfiguration("bicepFlex");
+  const extensionSource =
+    "extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0'  as microsoftGraphV1_0\n";
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "extension-alias.bicep"),
+    extensionSource,
+  );
+  const extensionAlias = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "extension-alias.bicep"),
+  );
+  await vscode.window.showTextDocument(extensionAlias);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(
+    extensionAlias.getText(),
+    extensionSource.replace("  as ", " as "),
+  );
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);

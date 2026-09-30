@@ -45,6 +45,27 @@ test("defaults preserve line-ending convention, use two spaces, final newline, a
   assert.equal(plugin.defaultOptions.endOfLine, "auto");
 });
 
+test("redundant inline spacing is removed without changing strings, comments, or ignored declarations", async () => {
+  const extension =
+    "extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0'";
+  assert.equal(
+    await stable(`${extension}  as microsoftGraphV1_0\n`),
+    `${extension} as microsoftGraphV1_0\n`,
+  );
+  assert.equal(
+    await stable(`${extension}    as    microsoftGraphV1_0\n`),
+    `${extension} as microsoftGraphV1_0\n`,
+  );
+  assert.equal(
+    await stable("param  name  string\nvar  value = 'a  b' // keep  comment\n"),
+    "param name string\n\nvar value = 'a  b' // keep  comment\n",
+  );
+  assert.equal(
+    await stable(`// prettier-ignore\n${extension}  as microsoftGraphV1_0\n`),
+    `// prettier-ignore\n${extension}  as microsoftGraphV1_0\n`,
+  );
+});
+
 test("objects expand, primitive arrays compact, and declarations are separated", async () => {
   assert.equal(
     await stable(

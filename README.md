@@ -107,7 +107,9 @@ flattened to force a call inline. Conditional resource/module headers keep `if`
 on the declaration line even beyond the width target. Existing comments or
 directives that make that layout unsafe take precedence. Long `@description(...)` decorators
 are exempt from the width target. Strings and ordinary comments are not reflowed;
-trailing comments stay inline. Unnecessary quotes on identifier property names
+trailing comments stay inline. Extra same-line whitespace between syntax tokens
+is reduced to one space without changing indentation, strings, comments, or
+ignored declarations. Unnecessary quotes on identifier property names
 and parentheses around a single lambda parameter are removed.
 
 Object-producing loops keep `[for ...: {` or `[for ...: if (...) {` on the

@@ -2,6 +2,9 @@
 
 ## 0.2.1 (unreleased)
 
+- Remove redundant inline whitespace between Bicep syntax tokens, including
+  the extra space before an extension alias, without rewriting strings,
+  comments, or ignored declarations.
 - Group consecutive parameters without `@description` by default, separating
   described parameters; add `bicepParameterSpacing: "inherit"` to follow the
   general declaration spacing policy instead.

@@ -264,6 +264,10 @@ standard Prettier layout settings continue to work.
 
 ### Wrapping and whitespace
 
+Extra whitespace between syntax tokens on the same line is reduced to a single
+space, including before an extension alias (`extension '...' as name`). This does
+not change indentation, string contents, comments, or ignored declarations.
+
 | Option                    | Default         | Values and behavior                                                                                                                                                                                                 |
 | ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bicepObjectLayout`       | `"multiline"`   | `"multiline"` expands nonempty objects/types; `"auto"` allows compact source objects to remain compact when they fit                                                                                                |
