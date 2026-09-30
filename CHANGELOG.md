@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Keep comments attached to plain parameters within compact parameter blocks
+  instead of inserting a blank line before the comment.
 - Collapse fitting call-expression loops and their safe object arguments to
   one line with no interior brace padding instead of only expanding them;
   preserve comments and explicit layout choices.

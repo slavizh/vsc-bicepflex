@@ -132,6 +132,68 @@ test("other decorators stay grouped and comment boundaries retain their spacing"
   );
 });
 
+test("attached comments do not split compact plain parameter blocks", async () => {
+  const source =
+    "param slot object\n" +
+    "// Settings that are not inherited from site\n" +
+    "param slotSettings object\n" +
+    "param siteName string\n" +
+    "@allowed([\n  'app'\n  'functionapp'\n  'api'\n  'functionapp,workflowapp'\n])\n" +
+    "param kind string\n" +
+    "param isHyperV bool = false\n" +
+    "param operatingSystem string\n" +
+    "param tags object\n";
+  const expected =
+    "param slot object\n" +
+    "// Settings that are not inherited from site\n" +
+    "param slotSettings object\n" +
+    "param siteName string\n" +
+    "@allowed(['app', 'functionapp', 'api', 'functionapp,workflowapp'])\n" +
+    "param kind string\n" +
+    "param isHyperV bool = false\n" +
+    "param operatingSystem string\n" +
+    "param tags object\n";
+  assert.equal(await stable(source), expected);
+  assert.equal(
+    await stable(source.replace("// Settings", "\n// Settings")),
+    expected,
+  );
+  assert.equal(
+    await stable(
+      source.replace(
+        "// Settings that are not inherited from site",
+        "/* Settings that are not inherited from site */",
+      ),
+    ),
+    expected.replace(
+      "// Settings that are not inherited from site",
+      "/* Settings that are not inherited from site */",
+    ),
+  );
+  const block = "/* Settings that are not inherited\n   from site */";
+  assert.equal(
+    await stable(
+      source.replace("// Settings that are not inherited from site", block),
+    ),
+    expected.replace("// Settings that are not inherited from site", block),
+  );
+  assert.match(
+    await stable(
+      source.replace(
+        "param slotSettings object",
+        "@description('Slot settings')\nparam slotSettings object",
+      ),
+    ),
+    /param slot object\n\n\/\/ Settings that are not inherited from site\n@description\('Slot settings'\)/,
+  );
+  assert.match(
+    await stable(source.replace("// Settings", "\n// Settings"), {
+      bicepParameterSpacing: "preserve",
+    }),
+    /param slot object\n\n\/\/ Settings/,
+  );
+});
+
 test("variables move immediately before first consumer", async () => {
   const output = await stable(
     "var appTags={env:'dev'}\n" +

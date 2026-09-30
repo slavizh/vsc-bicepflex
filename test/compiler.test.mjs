@@ -40,6 +40,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "@maxLength(20)\n@description('Name.')\n@minLength(3)\nparam name string='example'\noutput name string=name\n",
       "param apiApps array=[{name:'app'}]\nvar apiAppsRes=[for apiApp in apiApps: {outputs:{siteProperties:{name:apiApp.name},slots:[]}}]\noutput sites array=[for (apiApp,i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, {\nslots:apiAppsRes[i].outputs.slots\n})]\n",
       "param webAppServicePlans array=[{properties:{hyperV:true}}]\nvar i=0\noutput plan object={isHyperV:union({ hyperV : false },webAppServicePlans[i].properties).hyperV}\n",
+      "param slot object={}\n// Settings that are not inherited from site\nparam slotSettings object={}\noutput result object=union(slot,slotSettings)\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

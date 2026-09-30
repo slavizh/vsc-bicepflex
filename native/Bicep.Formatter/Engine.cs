@@ -450,7 +450,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     if (options.BicepParameterSpacing == "description" &&
                         previous is ParameterDeclarationSyntax previousParameter &&
                         current is ParameterDeclarationSyntax currentParameter &&
-                        string.IsNullOrWhiteSpace(gap))
+                        (string.IsNullOrWhiteSpace(gap) || HasAttachedParameterComment(gap)))
                     {
                         spacing = previousParameter.Decorators.Any(d => Layout.DecoratorName(d) == "description") ||
                             currentParameter.Decorators.Any(d => Layout.DecoratorName(d) == "description")
@@ -471,6 +471,18 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
 
     [GeneratedRegex(@"^([^\n]*\n)(?:[ \t]*\n)*")]
     private static partial Regex DeclarationGap();
+
+    [GeneratedRegex(@"(?ms)^[ \t]*(?://[^\n]*|/\*.*?\*/)\n[ \t]*\z")]
+    private static partial Regex AttachedParameterComment();
+
+    private static bool HasAttachedParameterComment(string gap)
+    {
+        var firstNewline = gap.IndexOf('\n');
+        return firstNewline >= 0 &&
+            gap.AsSpan(0, firstNewline).IndexOfAnyExcept(' ', '\t') < 0 &&
+            AttachedParameterComment().IsMatch(gap) &&
+            !gap.Contains("prettier-ignore", StringComparison.Ordinal);
+    }
 
     private static TextSpan[] ProtectedSpans(SyntaxTree tree, HashSet<string> ignored) => tree.Nodes
         .Where(n => n is ITopLevelDeclarationSyntax && ignored.Contains(tree.Id(n)))

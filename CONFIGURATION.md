@@ -54,8 +54,12 @@ By default, consecutive `.bicep` parameter declarations without
 `@description` have no blank line between them. A parameter decorated with
 `@description` (including `@sys.description`) is separated from its neighboring
 parameters by one blank line. Other decorators do not separate parameters.
-Spacing next to non-parameter declarations and across comments follows
-`bicepDeclarationSpacing`; `.bicepparam` assignments are unaffected.
+Comments attached directly to the next plain parameter remain in the compact
+block; a blank line between a comment and its parameter retains a section
+boundary. Spacing next to non-parameter declarations follows
+`bicepDeclarationSpacing`; `.bicepparam` assignments are unaffected. Set
+`bicepParameterSpacing: "preserve"` to retain authored blank lines even before
+an attached comment.
 
 Set the `bicepParameterSpacing` option to `"inherit"` in project configuration (or
 `"bicepFlex.bicepParameterSpacing": "inherit"` in VS Code Settings) to apply

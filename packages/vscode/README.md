@@ -15,7 +15,8 @@ Format on Save, use `"editor.formatOnSaveMode": "file"` for both languages.
 Defaults: two-space indentation, width 180, `endOfLine: "auto"`, multiline
 objects and dependency-aware declaration ordering. Plain parameters form
 compact blocks; parameters with `@description` have a blank line on either
-side. Set `bicepFlex.bicepParameterSpacing` to `"inherit"` to follow general
+side. A comment attached directly to the next plain parameter stays in that
+block. Set `bicepFlex.bicepParameterSpacing` to `"inherit"` to follow general
 declaration spacing instead. Resource properties place `location` before
 `dependsOn` by default; the property order is configurable. Multiline ternary
 branches indent one level, including wrapped conditions inside array loops.
