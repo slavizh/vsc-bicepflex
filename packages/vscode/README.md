@@ -13,7 +13,11 @@ Formatting selections or modified ranges is not supported; if you enable
 Format on Save, use `"editor.formatOnSaveMode": "file"` for both languages.
 
 Defaults: two-space indentation, width 180, `endOfLine: "auto"`, multiline
-objects and dependency-aware declaration ordering. Change options in the VS Code Settings UI or User Settings JSON:
+objects and dependency-aware declaration ordering. Plain parameters form
+compact blocks; parameters with `@description` have a blank line on either
+side. Set `bicepFlex.bicepParameterSpacing` to `"inherit"` to follow general
+declaration spacing instead. Change options in the VS Code Settings UI or User
+Settings JSON:
 
 ```json
 {

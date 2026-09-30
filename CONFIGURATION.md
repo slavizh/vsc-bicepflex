@@ -264,20 +264,21 @@ standard Prettier layout settings continue to work.
 
 ### Wrapping and whitespace
 
-| Option                    | Default       | Values and behavior                                                                                                                                                         |
-| ------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bicepObjectLayout`       | `"multiline"` | `"multiline"` expands nonempty objects/types; `"auto"` allows compact source objects to remain compact when they fit                                                        |
-| `bicepArrayLayout`        | `"compact"`   | `"compact"` fits primitive arrays inline; `"multiline"` expands them; `"preserve"` retains the source compact/expanded preference, subject to width                         |
-| `bicepDeclarationSpacing` | `"separate"`  | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines   |
-| `bicepImportSpacing`      | `"compact"`   | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                |
-| `bicepPropertyBlankLines` | `false`       | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                      |
-| `bicepUnionLayout`        | `"auto"`      | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` places every member of a multi-member union on its own line                                       |
-| `bicepConditionalHeader`  | `"inline"`    | `"inline"` keeps direct resource/module `if` headers inline even when long; `"auto"` moves `if` below `=` only when the header exceeds width; `"next-line"` always moves it |
-| `bicepLogicalCallLayout`  | `"inline"`    | `"inline"` keeps calls in `&&`/`                                                                                                                                            |     | `conditions on one line, even beyond width;`"wrap"` allows width-based argument wrapping (never flattens comments or multiline literals) |
-| `bicepLoopLayout`         | `"auto"`      | `"auto"` compacts object-loop headers when they fit and closes with `}]`; `"expanded"` retains the native bracket layout (multiline for multiline bodies)                   |
-| `bicepQuoteProperties`    | `"as-needed"` | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                             |
-| `bicepLambdaParentheses`  | `"avoid"`     | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                           |
-| `bicepDescriptionWidth`   | `"ignore"`    | `"ignore"` leaves descriptions inline regardless of width; `"wrap"` wraps the call around its argument when long, never reflows or splits the string                        |
+| Option                    | Default         | Values and behavior                                                                                                                                                                                                 |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bicepObjectLayout`       | `"multiline"`   | `"multiline"` expands nonempty objects/types; `"auto"` allows compact source objects to remain compact when they fit                                                                                                |
+| `bicepArrayLayout`        | `"compact"`     | `"compact"` fits primitive arrays inline; `"multiline"` expands them; `"preserve"` retains the source compact/expanded preference, subject to width                                                                 |
+| `bicepDeclarationSpacing` | `"separate"`    | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines; parameter/import spacing can override it |
+| `bicepParameterSpacing`   | `"description"` | `"description"` groups plain parameters and separates described ones; `"inherit"` follows `bicepDeclarationSpacing` for consecutive parameters                                                                      |
+| `bicepImportSpacing`      | `"compact"`     | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                                                        |
+| `bicepPropertyBlankLines` | `false`         | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                                                              |
+| `bicepUnionLayout`        | `"auto"`        | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` places every member of a multi-member union on its own line                                                                               |
+| `bicepConditionalHeader`  | `"inline"`      | `"inline"` keeps direct resource/module `if` headers inline even when long; `"auto"` moves `if` below `=` only when the header exceeds width; `"next-line"` always moves it                                         |
+| `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls in logical conditions on one line, even beyond width; `"wrap"` allows width-based argument wrapping (never flattens comments or multiline literals)                                          |
+| `bicepLoopLayout`         | `"auto"`        | `"auto"` compacts object-loop headers when they fit and closes with `}]`; `"expanded"` retains the native bracket layout (multiline for multiline bodies)                                                           |
+| `bicepQuoteProperties`    | `"as-needed"`   | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                                                                     |
+| `bicepLambdaParentheses`  | `"avoid"`       | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                                                                   |
+| `bicepDescriptionWidth`   | `"ignore"`      | `"ignore"` leaves descriptions inline regardless of width; `"wrap"` wraps the call around its argument when long, never reflows or splits the string                                                                |
 
 ## Interactions and examples
 
@@ -307,8 +308,8 @@ To separate declarations while keeping imports together:
 ```
 
 Import spacing is more specific and wins for consecutive imports. To preserve
-both author declaration and import spacing, set both options to `"preserve"`,
-or set declaration spacing to `"preserve"` and import spacing to `"inherit"`.
+author spacing everywhere, set declaration and import spacing to `"preserve"`
+and parameter spacing to `"inherit"` (or set import spacing to `"inherit"`).
 Comment sections are not removed to join an import block.
 
 ### Disable movement but keep whitespace formatting
