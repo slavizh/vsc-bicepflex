@@ -2,6 +2,9 @@
 
 ## 0.2.1 (unreleased)
 
+- Indent multiline ternary object, array, loop, and function-call branches by
+  one configured level instead of two; preserve nested branches and literal
+  or comment contents.
 - Remove redundant inline whitespace between Bicep syntax tokens, including
   the extra space before an extension alias, without rewriting strings,
   comments, or ignored declarations.

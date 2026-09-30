@@ -469,6 +469,75 @@ test("deeply nested conditional property keeps two-space indentation", async () 
   assert.match(tabs, /\n\t{5}\? empty\(slot\.linuxFxVersion\)/);
 });
 
+test("conditional object branches indent their contents once after the question or colon", async () => {
+  const source = [
+    "var config = {",
+    "  customDnsSuffixConfiguration: !empty(appServiceEnvironment.customDnsSuffix.dnsSuffix)",
+    "    ? {",
+    "        // incorrect API schema",
+    "        dnsSuffix: appServiceEnvironment.customDnsSuffix.dnsSuffix",
+    "        certificateUrl: customDnsSuffixCertificate!.properties.secretUri",
+    "        keyVaultReferenceIdentity: !empty(appServiceEnvironment.customDnsSuffix.identity.name) ? customDnsSuffixIdentity.id : 'systemassigned'",
+    "      }",
+    "    : null",
+    "}",
+    "",
+  ].join("\n");
+  const expected = source
+    .replaceAll("\n        ", "\n      ")
+    .replace("\n      }\n    : null", "\n    }\n    : null");
+  assert.equal(await stable(source, { tabWidth: 2 }), expected);
+  const fourSpaces = await stable(source, { tabWidth: 4 });
+  assert.match(fourSpaces, /\n {8}\? \{\n {12}\/\/ incorrect API schema/);
+  assert.match(fourSpaces, /\n {12}dnsSuffix:/);
+  assert.match(fourSpaces, /\n {8}\}\n {8}: null/);
+  const tabs = await stable(source, { tabWidth: 4, useTabs: true });
+  assert.match(tabs, /\n\t{2}\? \{\n\t{3}\/\/ incorrect API schema/);
+  assert.match(tabs, /\n\t{2}\}\n\t{2}: null/);
+});
+
+test("array, loop, and call branches use one continuation indent", async () => {
+  const array = await stable(
+    "param enabled bool\nvar items = enabled ? ['one','two'] : ['three','four']\n",
+    { bicepArrayLayout: "multiline" },
+  );
+  assert.match(array, /\n {2}\? \[\n {4}'one'\n {4}'two'\n {2}\]/);
+  assert.match(array, /\n {2}: \[\n {4}'three'\n {4}'four'\n {2}\]/);
+  const loop = await stable(
+    "param enabled bool\nparam names array\nvar items = enabled ? [for name in names: {value:name}] : []\n",
+  );
+  assert.match(
+    loop,
+    /\n {2}\? \[for name in names: \{\n {4}value: name\n {2}\}\]/,
+  );
+  const call = await stable(
+    "param enabled bool\nvar items = enabled ? union({one:1},{two:2}) : union({three:3},{four:4})\n",
+    { printWidth: 20 },
+  );
+  assert.match(call, /\n {2}\? union\(\n {4}\{\n {6}one: 1/);
+  assert.match(call, /\n {2}: union\(\n {4}\{\n {6}three: 3/);
+});
+
+test("nested and parenthesized ternary objects preserve comments and literal indentation", async () => {
+  const nested = await stable(
+    "param flag bool\nparam second bool\nvar result = flag ? (second ? {inner:{name:'first'}} : {inner:{name:'other'}}) : {inner:{name:'third'}}\n",
+  );
+  assert.match(nested, /\n {2}\? \(second\n {4}\? \{\n {6}inner:/);
+  assert.match(nested, /\n {4}: \{\n {6}inner:/);
+  assert.match(nested, /\n {2}: \{\n {4}inner:/);
+  const parenthesized = await stable(
+    "param flag bool\nvar result = flag ? ({name:'first'}) : ({name:'other'})\n",
+  );
+  assert.match(parenthesized, /\n {2}\? \(\{\n {4}name: 'first'\n {2}\}\)/);
+  const protectedText = await stable(
+    "param flag bool\nvar result = flag ? {multiline: '''\n  two  significant  spaces\n''' /* first\n   significant comment\n */,child:{name:'first'}} : {name:'other'}\n",
+  );
+  assert.match(protectedText, /\n {2}\? \{\n {4}multiline:/);
+  assert.ok(protectedText.includes("'''\n  two  significant  spaces\n'''"));
+  assert.ok(protectedText.includes("/* first\n   significant comment\n */"));
+  assert.match(protectedText, /\n {4}child: \{\n {6}name: 'first'/);
+});
+
 const resourceGroupLoopHeader =
   "resource resourceGroupsRes 'Microsoft.Resources/resourceGroups@2025-04-01' = [for resourceGroup in resourceGroups: if (union(defaultResourceGroup, resourceGroup).create) {";
 const resourceGroupLoop =

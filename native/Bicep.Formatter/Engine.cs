@@ -62,7 +62,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         {
             formatted = InlineLogicalCalls(formatted, ignored.Keys.ToHashSet());
         }
-        formatted = IndentNestedTernaries(formatted, ignored.Keys.ToHashSet());
+        formatted = NormalizeTernaryIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
         if (options.BicepLoopLayout != "expanded")
         {
@@ -318,28 +318,52 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         return TextEdit.Apply(source, changes);
     }
 
-    private string IndentNestedTernaries(string source, HashSet<string> ignored)
+    private string NormalizeTernaryIndentation(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
         var protectedSpans = ProtectedSpans(tree, ignored);
         var indent = options.UseTabs ? "\t" : new string(' ', options.TabWidth);
         if (indent.Length == 0) return source;
         var dedents = new Dictionary<int, int>();
-        foreach (var ternary in tree.Nodes.OfType<TernaryOperationSyntax>())
+        static bool CompoundBranch(SyntaxBase expression) => expression switch
         {
-            var parent = tree.Parents.GetValueOrDefault(ternary);
-            while (parent is not null && parent is not TernaryOperationSyntax)
-                parent = tree.Parents.GetValueOrDefault(parent);
-            if (parent is null ||
-                source.LastIndexOf('\n', ternary.ConditionExpression.Span.Position) ==
-                source.LastIndexOf('\n', ternary.Question.Span.Position)) continue;
-            for (var newline = source.IndexOf('\n', ternary.ConditionExpression.Span.GetEndPosition());
-                newline >= 0 && newline + 1 < ternary.Span.GetEndPosition();
+            ObjectSyntax or ArraySyntax or ForSyntax or FunctionCallSyntax or InstanceFunctionCallSyntax => true,
+            ParenthesizedExpressionSyntax parenthesized => CompoundBranch(parenthesized.Expression),
+            _ => false,
+        };
+        void DedentLines(int begin, int end)
+        {
+            for (var newline = source.IndexOf('\n', begin);
+                newline >= 0 && newline + 1 < end;
                 newline = source.IndexOf('\n', newline + 1))
             {
                 var start = newline + 1;
                 if (protectedSpans.Any(span => span.Position < start && span.GetEndPosition() > start)) continue;
                 dedents[start] = dedents.GetValueOrDefault(start) + 1;
+            }
+        }
+        foreach (var ternary in tree.Nodes.OfType<TernaryOperationSyntax>())
+        {
+            var parent = tree.Parents.GetValueOrDefault(ternary);
+            while (parent is not null && parent is not TernaryOperationSyntax)
+                parent = tree.Parents.GetValueOrDefault(parent);
+            if (parent is not null &&
+                source.LastIndexOf('\n', ternary.ConditionExpression.Span.Position) !=
+                source.LastIndexOf('\n', ternary.Question.Span.Position))
+            {
+                DedentLines(ternary.ConditionExpression.Span.GetEndPosition(), ternary.Span.GetEndPosition());
+            }
+            foreach (var (separator, branch) in new[]
+                {
+                    (ternary.Question, ternary.TrueExpression),
+                    (ternary.Colon, ternary.FalseExpression),
+                })
+            {
+                if (CompoundBranch(branch) &&
+                    source.LastIndexOf('\n', separator.Span.Position) == source.LastIndexOf('\n', branch.Span.Position))
+                {
+                    DedentLines(branch.Span.Position, branch.Span.GetEndPosition());
+                }
             }
         }
         var changes = new List<TextEdit>();

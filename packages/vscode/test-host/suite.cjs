@@ -106,6 +106,19 @@ async function run() {
     extensionAlias.getText(),
     extensionSource.replace("  as ", " as "),
   );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "ternary-object.bicep"),
+    "param enabled bool\nvar result = enabled ? {name:'first'} : {name:'other'}\n",
+  );
+  const ternaryObject = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "ternary-object.bicep"),
+  );
+  await vscode.window.showTextDocument(ternaryObject);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(
+    ternaryObject.getText(),
+    /\n {2}\? \{\n {4}name: 'first'\n {2}\}\n {2}: \{\n {4}name: 'other'\n {2}\}/,
+  );
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);

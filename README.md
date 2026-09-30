@@ -97,8 +97,9 @@ are preserved. Set `bicepParameterSpacing: "inherit"` to use
 to `"preserve"` alone still groups plain parameters.
 
 Long calls and ternaries wrap at grammar-valid positions. Nested ternary
-continuations advance by one indentation level (two spaces by default) per
-branch, including attached comments. Binary expressions
+continuations and multiline object, array, loop, or call branches advance by
+one indentation level (two spaces by default), without reindenting multiline
+strings or comments. Binary expressions
 cannot arbitrarily wrap. Calls inside `&&`/`||` conditions stay inline by
 default, even when the condition exceeds the width target, so logical clauses
 remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow
