@@ -123,6 +123,10 @@ async function run() {
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
   assert.equal(config.inspect("bicepArrayLayout").defaultValue, "compact");
+  assert.deepEqual(
+    config.inspect("bicepResourcePropertyOrder").defaultValue.slice(0, 5),
+    ["name", "parent", "scope", "location", "dependsOn"],
+  );
   assert.equal(
     config.inspect("bicepParameterSpacing").defaultValue,
     "description",

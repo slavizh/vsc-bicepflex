@@ -134,6 +134,17 @@ test("native parser infers bicepparam from filepath when parser is omitted", asy
   );
 });
 
+test("native resource property defaults place location before dependsOn", async () => {
+  const source =
+    "resource first 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'={name:'first',location:'westeurope'}\n" +
+    "resource next 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'={dependsOn:[first],location:'westeurope',name:'next'}\n";
+  const [response] = await bridge([request({}, { text: source })]);
+  assert.match(
+    response.text,
+    /resource next[^\n]+\{\n  name: 'next'\n  location: 'westeurope'\n  dependsOn:/,
+  );
+});
+
 test("syntax diagnostics at the start of a file retain their first-line position", async () => {
   await assert.rejects(
     format("= invalid\nparam name string\n", {

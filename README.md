@@ -170,7 +170,7 @@ are therefore distinguished.
 Resource-body property priority:
 
 ```text
-name, parent, scope, dependsOn, location, tags, identity, kind, sku,
+name, parent, scope, location, dependsOn, tags, identity, kind, sku,
 zones, plan, [unlisted properties], properties
 ```
 

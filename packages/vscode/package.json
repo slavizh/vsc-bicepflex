@@ -269,8 +269,8 @@
             "name",
             "parent",
             "scope",
-            "dependsOn",
             "location",
+            "dependsOn",
             "tags",
             "identity",
             "kind",
@@ -280,7 +280,7 @@
             "*",
             "properties"
           ],
-          "description": "Resource property priorities; * marks unlisted properties. Default: [\"name\",\"parent\",\"scope\",\"dependsOn\",\"location\",\"tags\",\"identity\",\"kind\",\"sku\",\"zones\",\"plan\",\"*\",\"properties\"].",
+          "description": "Resource property priorities; * marks unlisted properties. Default: [\"name\",\"parent\",\"scope\",\"location\",\"dependsOn\",\"tags\",\"identity\",\"kind\",\"sku\",\"zones\",\"plan\",\"*\",\"properties\"].",
           "order": 17
         },
         "bicepFlex.bicepModulePropertyOrder": {

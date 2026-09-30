@@ -11,7 +11,7 @@ sealed record FormatOptions
     public bool BicepSortDeclarations { get; init; } = true;
     public string[] BicepDeclarationOrder { get; init; } = ["metadata", "extension", "targetScope", "import", "type", "param", "func", "var", "resource", "module", "output"];
     public bool BicepSortProperties { get; init; } = true;
-    public string[] BicepResourcePropertyOrder { get; init; } = ["name", "parent", "scope", "dependsOn", "location", "tags", "identity", "kind", "sku", "zones", "plan", "*", "properties"];
+    public string[] BicepResourcePropertyOrder { get; init; } = ["name", "parent", "scope", "location", "dependsOn", "tags", "identity", "kind", "sku", "zones", "plan", "*", "properties"];
     public string[] BicepModulePropertyOrder { get; init; } = ["name", "scope", "dependsOn", "*", "params"];
     public bool BicepSortDecorators { get; init; } = true;
     public string[] BicepDecoratorOrder { get; init; } = ["export", "sealed", "description", "metadata", "discriminator", "secure", "allowed", "minLength", "maxLength", "minValue", "maxValue", "batchSize"];

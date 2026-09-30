@@ -286,6 +286,23 @@ test("resource and module property priorities, with unlisted keys before propert
   assert.ok(custom.indexOf("kind:") < custom.indexOf("location:"));
 });
 
+test("resource location precedes dependsOn by default and custom property order still wins", async () => {
+  const source =
+    resource("dependency") + resource("target", "dependsOn:[dependency]");
+  const output = await stable(source);
+  assert.match(
+    output,
+    /resource target[^\n]+\{\n  name: 'target'\n  location: 'westeurope'\n  dependsOn:/,
+  );
+  const overridden = await stable(source, {
+    bicepResourcePropertyOrder: ["name", "dependsOn", "location", "*"],
+  });
+  assert.match(
+    overridden,
+    /resource target[^\n]+\{\n  name: 'target'\n  dependsOn: \[\n    dependency\n  \]\n  location:/,
+  );
+});
+
 test("decorator ordering follows latest user priority", async () => {
   const output = await stable(
     "@maxLength(24)\n@minLength(3)\n@description('Name.')\nparam name string\n",

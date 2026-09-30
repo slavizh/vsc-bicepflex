@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Place resource `location` before `dependsOn` by default; custom resource
+  property priority arrays still override this order.
 - Indent multiline ternary object, array, loop, and function-call branches by
   one configured level instead of two; preserve nested branches and literal
   or comment contents.
