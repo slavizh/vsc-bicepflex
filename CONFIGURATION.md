@@ -277,6 +277,9 @@ one level per branch; multiline string and comment contents are unchanged.
 Nested ternaries within a multiline call argument retain their own branch
 indentation; only direct branches of an enclosing ternary share its
 continuation dedent. Sibling object properties remain aligned.
+When a lambda expression wraps after `=>`, its body aligns with the lambda
+header, including lambdas nested inside calls. Comments and multiline literals
+remain protected.
 When a `for` expression's ternary body has a wrapped condition, its `?` and
 `:` branches indent one more level than the loop-body condition continuation.
 

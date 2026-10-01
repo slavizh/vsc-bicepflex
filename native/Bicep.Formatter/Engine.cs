@@ -139,6 +139,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             formatted = CompactObjectLoops(formatted, ignored.Keys.ToHashSet());
             formatted = CompactExpressionLoops(formatted, ignored.Keys.ToHashSet());
         }
+        formatted = NormalizeLambdaIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = NormalizeInlineSpacing(formatted, ignored.Keys.ToHashSet());
         var final = Parse(formatted);
         var finalTree = new SyntaxTree(final.ProgramSyntax);
@@ -607,6 +608,44 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             if (length > 0) changes.Add(new(start, length, ""));
         }
         return TextEdit.Apply(source, changes);
+    }
+
+    private string NormalizeLambdaIndentation(string source, HashSet<string> ignored)
+    {
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var indent = options.UseTabs ? "\t" : new string(' ', options.TabWidth);
+        if (indent.Length == 0) return source;
+        var dedents = new Dictionary<int, int>();
+        foreach (var lambda in tree.Nodes.OfType<LambdaSyntax>())
+        {
+            if (SyntaxTree.HasComments(lambda) ||
+                protectedSpans.Any(span => span.Position < lambda.Span.GetEndPosition() &&
+                    span.GetEndPosition() > lambda.Span.Position)) continue;
+            var arrow = tree.Within(lambda).LastOrDefault(token =>
+                token.Text == "=>" && token.Span.GetEndPosition() <= lambda.Body.Span.Position);
+            if (arrow is null) continue;
+            var headerStart = source.LastIndexOf('\n', arrow.Span.Position) + 1;
+            var bodyStart = source.LastIndexOf('\n', lambda.Body.Span.Position) + 1;
+            if (bodyStart <= headerStart) continue;
+            var headerEnd = headerStart;
+            while (headerEnd < source.Length && source[headerEnd] is ' ' or '\t') headerEnd++;
+            var headerIndent = source[headerStart..headerEnd];
+            if (source[bodyStart..lambda.Body.Span.Position] != headerIndent + indent) continue;
+            for (var start = bodyStart; start < lambda.Body.Span.GetEndPosition();)
+            {
+                if (!protectedSpans.Any(span => span.Position < start && span.GetEndPosition() > start) &&
+                    source.AsSpan(start).StartsWith(indent))
+                    dedents[start] = dedents.GetValueOrDefault(start) + 1;
+                var next = source.IndexOf('\n', start);
+                if (next < 0) break;
+                start = next + 1;
+            }
+        }
+        return TextEdit.Apply(source, dedents
+            .Where(pair => source.AsSpan(pair.Key).StartsWith(
+                string.Concat(Enumerable.Repeat(indent, pair.Value))))
+            .Select(pair => new TextEdit(pair.Key, pair.Value * indent.Length, "")));
     }
 
     private string ApplyHeaderPolicies(string source, HashSet<string> ignored)

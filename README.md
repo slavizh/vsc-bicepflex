@@ -108,7 +108,9 @@ continuation indent rather than inheriting a dedent from an enclosing
 conditional; sibling object properties stay aligned. In array comprehensions,
 `?` and `:` following a wrapped
 loop-body condition get one additional continuation level. Binary expressions
-cannot arbitrarily wrap. Calls inside `&&`/`||` conditions stay inline by
+cannot arbitrarily wrap. When a lambda body starts on a new line, it aligns
+with the lambda header rather than gaining another indentation level; nested
+lambda bodies follow the same rule. Calls inside `&&`/`||` conditions stay inline by
 default, even when the condition exceeds the width target, so logical clauses
 remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow
 width-based call wrapping instead; comments and multiline literals are never

@@ -401,6 +401,45 @@ test("single lambda parameter parentheses are removed", async () => {
   assert.match(output, /map\(names, name => toLower\(name\)\)/);
 });
 
+test("wrapped lambda call bodies align with their lambda headers", async () => {
+  const source =
+    "var config = {\n" +
+    "  alertRules: filter(map(items(union(defaultResourceGroup, resourceGroup).alertRules), alertRule => union({parameterName: alertRule.key}, alertRule.value)), alertRule => alertRule.deploy)\n" +
+    "}\n";
+  const expected =
+    "var config = {\n" +
+    "  alertRules: filter(\n" +
+    "    map(\n" +
+    "      items(union(defaultResourceGroup, resourceGroup).alertRules),\n" +
+    "      alertRule =>\n" +
+    "      union({parameterName: alertRule.key}, alertRule.value)\n" +
+    "    ),\n" +
+    "    alertRule => alertRule.deploy\n" +
+    "  )\n" +
+    "}\n";
+  assert.equal(await stable(source), expected);
+  assert.match(
+    await stable(source, { tabWidth: 4 }),
+    /\n {12}alertRule =>\n {12}union\(/,
+  );
+  assert.match(
+    await stable(source, { tabWidth: 4, useTabs: true }),
+    /\n\t{3}alertRule =>\n\t{3}union\(/,
+  );
+  const nested = await stable(
+    "var result = map(values, value => filter(value.items, item => union({active: item.active}, item).active))\n",
+    { printWidth: 55 },
+  );
+  assert.match(nested, /\n {2}value =>\n {2}filter\(/);
+  assert.match(nested, /\n {4}item =>\n {4}union\(/);
+  const commented = await stable(
+    "var result = map(values, value => union({name: value.name}, /* keep */ value))\n",
+    { printWidth: 55 },
+  );
+  assert.match(commented, /\/\* keep \*\//);
+  assert.match(commented, /\n {2}value =>\n {4}union\(/);
+});
+
 test("loop and lambda variables shadow globals without creating false dependencies", async () => {
   const output = await stable(
     "param name string='global'\noutput result array=[for name in ['a']:name]\n",

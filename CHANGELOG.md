@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Align wrapped lambda call bodies with their `=>` headers rather than adding
+  a redundant continuation indent; retain nested-call and comment safety.
 - Collapse fitting ternary object properties to a single line with tight object
   braces, while retaining multiline comments, strings and preserve-mode layout.
 - Keep ternaries in multiline function arguments indented independently of
