@@ -236,7 +236,7 @@ export const options = {
     "inline",
   ),
   bicepLogicalCallLayout: choice(
-    "Keep logical if-condition calls inline, width-aware, or in their authored layout.",
+    "Keep calls under && or || inline, width-aware, or in their authored layout.",
     ["inline", "wrap", "preserve"],
     "inline",
   ),

@@ -550,11 +550,11 @@
             "preserve"
           ],
           "default": "inline",
-          "description": "Keep logical if-condition calls inline, width-aware, or in their authored layout. Choices: \"inline\" — keep calls within && and || conditions on one line; \"wrap\" — wrap call arguments in logical conditions to the width target; \"preserve\" — retain authored call layout inside logical conditions even beyond width. Default: \"inline\".",
+          "description": "Keep calls under && or || inline, width-aware, or in their authored layout. Choices: \"inline\" — keep calls under && and || on one line; \"wrap\" — wrap call arguments under logical operators to the width target; \"preserve\" — retain authored call layout under logical operators even beyond width. Default: \"inline\".",
           "enumDescriptions": [
-            "keep calls within && and || conditions on one line",
-            "wrap call arguments in logical conditions to the width target",
-            "retain authored call layout inside logical conditions even beyond width"
+            "keep calls under && and || on one line",
+            "wrap call arguments under logical operators to the width target",
+            "retain authored call layout under logical operators even beyond width"
           ],
           "order": 33
         },

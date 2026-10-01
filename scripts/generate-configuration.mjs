@@ -257,10 +257,10 @@ const choiceDescriptions = {
       "retain authored if-condition calls and conditional loop headers even beyond width",
   },
   bicepLogicalCallLayout: {
-    inline: "keep calls within && and || conditions on one line",
-    wrap: "wrap call arguments in logical conditions to the width target",
+    inline: "keep calls under && and || on one line",
+    wrap: "wrap call arguments under logical operators to the width target",
     preserve:
-      "retain authored call layout inside logical conditions even beyond width",
+      "retain authored call layout under logical operators even beyond width",
   },
   bicepLoopLayout: {
     auto: "compact object-loop headers when they fit",

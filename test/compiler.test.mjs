@@ -45,6 +45,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "param enabled bool=true\noutput config object={apiManagementConfig:enabled?{id:'management'}:null,apiDefinition:enabled?{url:'https://example.com'}:null}\n",
       "output alertRules array=filter(map(items(union({alertRules:{rule:{deploy:true}}},{alertRules:{}}).alertRules),alertRule=>union({parameterName:alertRule.key},alertRule.value)),alertRule=>alertRule.deploy)\n",
       "param database object={sku:{name:'Basic'},hybridBenefit:false}\noutput config object={licenseType:database.sku.name =~ 'ElasticPool' || startsWith(database.sku.name,'S') || startsWith(database.sku.name,'P') || startsWith(database.sku.name,'Basic') || contains(database.sku.name,'_S_')?null:database.hybridBenefit?'BasePrice':'LicenseIncluded'}\n",
+      "param name string='Basic'\noutput enabled bool=startsWith(name,'Basic') || contains(name,'_S_')\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

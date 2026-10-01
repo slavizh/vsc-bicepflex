@@ -128,7 +128,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             formatted = PreserveCallBreaks(formatted, ignored.Keys.ToHashSet());
         if (options.BicepIfConditionLayout == "inline" || options.BicepLogicalCallLayout == "inline")
         {
-            formatted = InlineConditionCalls(formatted, ignored.Keys.ToHashSet());
+            formatted = InlineConfiguredCalls(formatted, ignored.Keys.ToHashSet());
         }
         formatted = NormalizeTernaryIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
@@ -177,7 +177,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 ArraySyntax => options.BicepArrayLayout == "preserve",
                 UnionTypeSyntax => options.BicepUnionLayout == "preserve",
                 FunctionCallSyntax or InstanceFunctionCallSyntax =>
-                    ConditionCallLayout(tree, node) == "preserve",
+                    CallLayout(tree, node) == "preserve",
                 _ => false,
             };
             if (!eligible || Original(tree, node) is not string original || original.Contains('\n') ||
@@ -222,7 +222,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var changes = new List<TextEdit>();
         foreach (var call in tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax))
         {
-            if (ConditionCallLayout(tree, call) != "preserve" ||
+            if (CallLayout(tree, call) != "preserve" ||
                 !authorCallBreaks.TryGetValue(tree.Path(call), out var breaks) ||
                 SyntaxTree.HasComments(call) ||
                 protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
@@ -471,26 +471,22 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             .Where(t => t.Type != SyntaxTriviaType.Whitespace && t.Text.Contains('\n')).Select(t => t.Span))
         .ToArray();
 
-    private string? ConditionCallLayout(SyntaxTree tree, SyntaxBase call)
+    private string? CallLayout(SyntaxTree tree, SyntaxBase call)
     {
         var node = call;
-        var logical = false;
         while (tree.Parents.TryGetValue(node, out var parent))
         {
             if (parent is BinaryOperationSyntax binary &&
                 binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd)
-                logical = true;
-            if (parent is TernaryOperationSyntax ternary &&
-                ReferenceEquals(node, ternary.ConditionExpression) && logical)
                 return options.BicepLogicalCallLayout;
             if (parent is IfConditionSyntax)
-                return logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout;
+                return options.BicepIfConditionLayout;
             node = parent;
         }
         return null;
     }
 
-    private string InlineConditionCalls(string source, HashSet<string> ignored)
+    private string InlineConfiguredCalls(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
         var protectedSpans = ProtectedSpans(tree, ignored);
@@ -498,7 +494,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         foreach (var call in tree.Nodes.Where(node =>
             node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
             source.AsSpan(node.Span.Position, node.Span.Length).Contains('\n') &&
-            ConditionCallLayout(tree, node) == "inline"))
+            CallLayout(tree, node) == "inline"))
         {
             if (changes.Any(edit => edit.Start <= call.Span.Position &&
                 edit.Start + edit.Length >= call.Span.GetEndPosition()) ||
@@ -881,7 +877,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     span.GetEndPosition() > call.Span.Position) ||
                 changes.Any(edit => edit.Start <= call.Span.Position &&
                     edit.Start + edit.Length >= call.Span.GetEndPosition())) continue;
-            if (ConditionCallLayout(tree, call) == "preserve" &&
+            if (CallLayout(tree, call) == "preserve" &&
                 authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true) continue;
             var inline = RenderCompactExpression(call);
             if (inline is null || inline == SyntaxTree.Slice(source, call)) continue;

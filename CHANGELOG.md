@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Apply logical-call layout consistently under `&&`/`||` in any expression,
+  not only `if` and ternary conditions, including authored preserve mode.
 - Keep calls inside logical ternary conditions inline by default; respect
   explicit wrap/preserve choices and protect comments.
 - Align wrapped lambda call bodies with their `=>` headers rather than adding

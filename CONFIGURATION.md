@@ -294,7 +294,7 @@ When a `for` expression's ternary body has a wrapped condition, its `?` and
 | `bicepUnionLayout`        | `"auto"`        | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` puts every member on a line; `"preserve"` retains authored member breaks even beyond width                                                |
 | `bicepConditionalHeader`  | `"inline"`      | `"inline"` keeps direct resource/module `if` headers inline even when long; `"auto"` moves `if` below `=` when long; `"next-line"` always moves it; `"preserve"` retains authored placement                         |
 | `bicepIfConditionLayout`  | `"inline"`      | `"inline"` keeps calls in `if` conditions inline and compacts conditional object-loop headers beyond width; `"wrap"` allows width-based wrapping; `"preserve"` retains authored call breaks                         |
-| `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls in logical conditions on one line even beyond width; `"wrap"` allows width-based argument wrapping; `"preserve"` retains authored argument breaks                                            |
+| `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls under logical operators on one line even beyond width in any expression; `"wrap"` allows width-based argument wrapping; `"preserve"` retains authored argument breaks                        |
 | `bicepLoopLayout`         | `"auto"`        | `"auto"` compacts fitting object-loop headers and fitting call-expression loops; `"expanded"` retains native brackets; `"preserve"` retains authored compact/expanded brackets even beyond width                    |
 | `bicepQuoteProperties`    | `"as-needed"`   | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                                                                     |
 | `bicepLambdaParentheses`  | `"avoid"`       | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                                                                   |
@@ -309,12 +309,12 @@ For width-based wrapping of nonlogical `if` conditions in project configuration:
 ```
 
 In VS Code Settings, use `bicepFlex.bicepIfConditionLayout` instead.
-`bicepLogicalCallLayout` separately controls calls inside `&&`/`||`
-conditions, including ternary conditions; `"wrap"` on the new setting does not override the logical-call
-setting. `bicepLoopLayout: "expanded"` still expands brackets even if the
-condition remains inline. Comments and multiline literals prevent unsafe
-flattening, and a multiline loop collection can still require expanded
-brackets. Compact conditional loops with parenthesized collections use
+`bicepLogicalCallLayout` separately controls calls under `&&`/`||` in any
+expression, including ternary and `if` conditions. `"wrap"` on the `if` setting
+does not override the logical-call setting. `bicepLoopLayout: "expanded"` still
+expands brackets even if the condition remains inline. Comments and multiline
+literals prevent unsafe flattening. A multiline loop collection can still
+require expanded brackets. Compact conditional loops with parenthesized collections use
 `in (collection) : if (...)` spacing.
 Call-expression loops can also compact both brackets and object arguments
 when the complete line fits. Fitting calls in property values similarly

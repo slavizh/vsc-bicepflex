@@ -1186,6 +1186,81 @@ test("logical ternary conditions keep calls inline by default", async () => {
   );
 });
 
+test("calls under logical operators use the same layout outside condition headers", async () => {
+  const source =
+    "var enabled = startsWith(database.sku.name, 'Basic') || contains(database.sku.name, '_S_')\n";
+  const width = { printWidth: 40 };
+  const inline = await stable(source, width);
+  assert.match(inline, /startsWith\(database\.sku\.name, 'Basic'\)/);
+  assert.match(inline, /contains\(database\.sku\.name, '_S_'\)/);
+  const wrapped = await stable(source, {
+    ...width,
+    bicepLogicalCallLayout: "wrap",
+  });
+  assert.match(wrapped, /startsWith\(\n/);
+  const authored = source.replace(
+    "contains(database.sku.name, '_S_')",
+    "contains(\n  database.sku.name,\n  '_S_'\n)",
+  );
+  assert.match(
+    await stable(authored, {
+      printWidth: 220,
+      bicepLogicalCallLayout: "preserve",
+    }),
+    /contains\(\n\s+database\.sku\.name,/,
+  );
+  assert.match(
+    await stable(source, {
+      ...width,
+      bicepLogicalCallLayout: "preserve",
+    }),
+    /contains\(database\.sku\.name, '_S_'\)/,
+  );
+  const conjunction = source.replace(" || ", " && ");
+  assert.match(
+    await stable(conjunction, width),
+    /contains\(database\.sku\.name, '_S_'\)/,
+  );
+  const nested = source.replace(
+    "startsWith(database.sku.name, 'Basic')",
+    "empty(union(database.sku.name, other.name))",
+  );
+  assert.match(
+    await stable(nested, width),
+    /union\(database\.sku\.name, other\.name\)/,
+  );
+  assert.match(
+    await stable(
+      source
+        .replace("var enabled = ", "var flags = { enabled: ")
+        .replace(/\n$/, " }\n"),
+      width,
+    ),
+    /contains\(database\.sku\.name, '_S_'\)/,
+  );
+  assert.match(
+    await stable(source, {
+      ...width,
+      filepath: resolve("test", "fixtures", "main.bicepparam"),
+    }),
+    /contains\(database\.sku\.name, '_S_'\)/,
+  );
+  assert.match(
+    await stable("var value = contains(database.sku.name, '_S_')\n", width),
+    /contains\(\n/,
+  );
+  assert.match(
+    await stable(
+      source.replace(
+        "contains(database.sku.name, '_S_')",
+        "contains(database.sku.name, /* keep */ '_S_')",
+      ),
+      width,
+    ),
+    /\/\* keep \*\//,
+  );
+});
+
 test("nested object loops compact consistently with tabs and spaces", async () => {
   const source =
     "output items array=[for x in ['one']:{nested:[for y in ['two']:{value:'${x}-${y}'}]}]\n";
