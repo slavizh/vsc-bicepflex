@@ -132,6 +132,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         }
         formatted = NormalizeTernaryIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
+        formatted = CompactTernaryObjectProperties(formatted, ignored.Keys.ToHashSet());
         formatted = CompactObjectArgumentCalls(formatted, ignored.Keys.ToHashSet());
         if (options.BicepLoopLayout != "expanded")
         {
@@ -797,17 +798,47 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         return TextEdit.Apply(expression, changes);
     }
 
-    private string? RenderCompactCall(SyntaxBase call)
+    private string? RenderCompactExpression(SyntaxBase expression)
     {
         var body = options.BicepObjectLayout == "preserve"
-            ? call
-            : new InlineObjectArguments().Rewrite(call);
+            ? expression
+            : new InlineObjectArguments().Rewrite(expression);
         var inline = PrettyPrinterV2.PrintValid(body, options.Printer with
         {
             Width = int.MaxValue,
             InsertFinalNewline = false,
         }).TrimEnd('\r', '\n');
         return inline.Contains('\n') ? null : RemoveInlineObjectBracePadding(inline);
+    }
+
+    private string CompactTernaryObjectProperties(string source, HashSet<string> ignored)
+    {
+        if (options.BicepObjectLayout == "preserve") return source;
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var changes = new List<TextEdit>();
+        foreach (var property in tree.Nodes.OfType<ObjectPropertySyntax>())
+        {
+            if (property.Value is not TernaryOperationSyntax ternary ||
+                ternary.TrueExpression is not ObjectSyntax && ternary.FalseExpression is not ObjectSyntax ||
+                SyntaxTree.HasComments(ternary) ||
+                protectedSpans.Any(span => span.Position < ternary.Span.GetEndPosition() &&
+                    span.GetEndPosition() > ternary.Span.Position)) continue;
+            var prefixStart = source.LastIndexOf('\n', property.Span.Position) + 1;
+            var prefix = source[prefixStart..ternary.Span.Position];
+            if (prefix.Contains('\n')) continue;
+            var inline = RenderCompactExpression(ternary);
+            if (inline is null || inline == SyntaxTree.Slice(source, ternary)) continue;
+            var suffixEnd = source.IndexOf('\n', ternary.Span.GetEndPosition());
+            if (suffixEnd < 0) suffixEnd = source.Length;
+            var line = prefix + inline + source[ternary.Span.GetEndPosition()..suffixEnd];
+            if (line.Replace("\t", new string(' ', options.TabWidth)).Length > options.PrintWidth)
+                continue;
+            if (!changes.Any(edit => edit.Start <= ternary.Span.Position &&
+                edit.Start + edit.Length >= ternary.Span.GetEndPosition()))
+                changes.Add(new(ternary.Span.Position, ternary.Span.Length, inline));
+        }
+        return TextEdit.Apply(source, changes);
     }
 
     private string CompactObjectArgumentCalls(string source, HashSet<string> ignored)
@@ -839,7 +870,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             if (ancestor is IfConditionSyntax &&
                 (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) == "preserve" &&
                 authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true) continue;
-            var inline = RenderCompactCall(call);
+            var inline = RenderCompactExpression(call);
             if (inline is null || inline == SyntaxTree.Slice(source, call)) continue;
             var start = source.LastIndexOf('\n', call.Span.Position) + 1;
             var end = source.IndexOf('\n', call.Span.GetEndPosition());
@@ -871,7 +902,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             var header = source[loop.ForKeyword.Span.Position..loop.Body.Span.Position];
             if (!string.IsNullOrWhiteSpace(before) || !string.IsNullOrWhiteSpace(after) ||
                 header.Contains('\n')) continue;
-            var inline = RenderCompactCall(loop.Body);
+            var inline = RenderCompactExpression(loop.Body);
             if (inline is null) continue;
             var replacement = "[" + header + inline + "]";
             var lineStart = source.LastIndexOf('\n', loop.OpenSquare.Span.Position) + 1;

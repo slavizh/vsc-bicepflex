@@ -134,7 +134,9 @@ Call-expression loops also collapse to one line when the entire expression
 fits; object arguments in those loops become compact without padding inside
 their braces (for example, `union(props, {slots: slots})`). Fitting calls
 inside property values follow the same rule, including property access after
-the call (`union({hyperV: false}, plan.properties).hyperV`). Other inline
+the call (`union({hyperV: false}, plan.properties).hyperV`). Fitting ternaries
+in object properties collapse their object branches as well (for example,
+`apiDefinition: enabled ? {url: endpoint} : null`). Other inline
 objects retain native brace spacing. Set
 `bicepLoopLayout: "expanded"` to retain expanded brackets or
 `bicepObjectLayout: "preserve"` to retain an expanded object argument.

@@ -575,6 +575,69 @@ test("conditional object branches indent their contents once after the question 
   assert.match(tabs, /\n\t{2}\}\n\t{2}: null/);
 });
 
+test("fitting ternary object properties collapse to tight inline branches", async () => {
+  const source = [
+    "var config = {",
+    "  apiManagementConfig: !empty(slotSettings.apiManagementService.name) ? {",
+    "    id: apiManagementServiceApi.id",
+    "  } : null",
+    "  apiDefinition: !empty(slotSettings.apiDefinition) ? {",
+    "    url: slotSettings.apiDefinition",
+    "  } : null",
+    "}",
+    "",
+  ].join("\n");
+  const expected = [
+    "var config = {",
+    "  apiManagementConfig: !empty(slotSettings.apiManagementService.name) ? {id: apiManagementServiceApi.id} : null",
+    "  apiDefinition: !empty(slotSettings.apiDefinition) ? {url: slotSettings.apiDefinition} : null",
+    "}",
+    "",
+  ].join("\n");
+  assert.equal(await stable(source), expected);
+  const longest = expected.split("\n")[1].length;
+  assert.equal(await stable(source, { printWidth: longest }), expected);
+  const narrow = await stable(source, { printWidth: longest - 1 });
+  assert.match(
+    narrow,
+    /apiManagementConfig: !empty\(slotSettings\.apiManagementService\.name\)\n/,
+  );
+  assert.match(
+    narrow,
+    /apiDefinition: !empty\(slotSettings\.apiDefinition\) \? \{url: slotSettings\.apiDefinition\} : null/,
+  );
+  assert.match(
+    await stable(source, { bicepObjectLayout: "preserve" }),
+    /\n    \? \{\n/,
+  );
+  const comment = source.replace(
+    "    id:",
+    "    // retain branch comment\n    id:",
+  );
+  assert.match(
+    await stable(comment),
+    /apiManagementConfig:[^\n]*\n    \? \{\n      \/\/ retain branch comment/,
+  );
+  const multiline = source.replace(
+    "apiManagementServiceApi.id",
+    "'''\n  keep indentation\n'''",
+  );
+  const kept = await stable(multiline);
+  assert.match(kept, /apiManagementConfig: !empty\([^\n]*\)\n/);
+  assert.ok(kept.includes("'''\n  keep indentation\n'''"));
+  const nested = await stable(
+    "var result={value: enabled ? {inner: flag ? {name:'a'} : null} : null}\n",
+  );
+  assert.match(
+    nested,
+    /value: enabled \? \{inner: flag \? \{name: 'a'\} : null\} : null/,
+  );
+  assert.equal(
+    await stable("// prettier-ignore\n" + source),
+    "// prettier-ignore\n" + source,
+  );
+});
+
 test("array, loop, and call branches use one continuation indent", async () => {
   const array = await stable(
     "param enabled bool\nvar items = enabled ? ['one','two'] : ['three','four']\n",

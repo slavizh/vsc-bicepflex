@@ -42,6 +42,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "param webAppServicePlans array=[{properties:{hyperV:true}}]\nvar i=0\noutput plan object={isHyperV:union({ hyperV : false },webAppServicePlans[i].properties).hyperV}\n",
       "param slot object={}\n// Settings that are not inherited from site\nparam slotSettings object={}\noutput result object=union(slot,slotSettings)\n",
       "param accounts array=[{type:'AzureFiles',storageAccount:{shareName:'one'}}]\noutput config object={azure:length(accounts)>0?union({first:{shareName:accounts[0].type =~ 'AzureFiles'?accounts[0].storageAccount.shareName:accounts[0].type =~ 'AzureBlob'?'blob':''}},length(accounts)>1?{second:{shareName:accounts[1].type =~ 'AzureFiles'?'x':'y'}}:{}):{}}\n",
+      "param enabled bool=true\noutput config object={apiManagementConfig:enabled?{id:'management'}:null,apiDefinition:enabled?{url:'https://example.com'}:null}\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

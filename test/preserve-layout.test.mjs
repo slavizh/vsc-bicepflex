@@ -130,6 +130,16 @@ test("compact call-expression loops use tight braces in parameter files", async 
   assert.equal(await format(expected, options), expected);
 });
 
+test("fitting ternary properties compact in Bicep parameter files", async () => {
+  const options = { plugins: [plugin], parser: "bicepparam" };
+  const source =
+    "using './main.bicep'\nvar config={\n  apiDefinition: !empty(slotSettings.apiDefinition) ? {\n    url:slotSettings.apiDefinition\n  } : null\n}\n";
+  const expected =
+    "using './main.bicep'\n\nvar config = {\n  apiDefinition: !empty(slotSettings.apiDefinition) ? {url: slotSettings.apiDefinition} : null\n}\n";
+  assert.equal(await format(source, options), expected);
+  assert.equal(await format(expected, options), expected);
+});
+
 test("preserve keeps direct conditional placement and loop bracket shape", async () => {
   const resource =
     "resource r 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'";

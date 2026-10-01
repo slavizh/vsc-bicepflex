@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Collapse fitting ternary object properties to a single line with tight object
+  braces, while retaining multiline comments, strings and preserve-mode layout.
 - Keep ternaries in multiline function arguments indented independently of
   enclosing conditionals, including nested object values and sibling properties.
 - Keep comments attached to plain parameters within compact parameter blocks

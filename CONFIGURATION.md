@@ -317,7 +317,9 @@ Call-expression loops can also compact both brackets and object arguments
 when the complete line fits. Fitting calls in property values similarly
 collapse object arguments, including calls followed by property access.
 These inline object arguments have no padding inside braces (`{slots: slots}`);
-other inline objects retain native spacing.
+fitting ternaries in object properties likewise compact object branches
+without padding (`apiDefinition: enabled ? {url: endpoint} : null`).
+Other inline objects retain native spacing.
 Comments, directives, multiline literals, and
 `bicepObjectLayout: "preserve"` prevent collapsing an expanded object argument.
 `bicepLoopLayout: "expanded"` keeps these loop brackets expanded.

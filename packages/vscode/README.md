@@ -39,7 +39,8 @@ Settings JSON:
 Call-expression loops, including `union(..., { ... })` bodies, also compact
 when the entire line fits, with tight object braces (`{slots: slots}`);
 fitting calls in property values follow the same rule. Comments and preserved
-object layouts stay intact.
+object layouts stay intact. Ternary object properties also collapse to one line
+when they fit, using tight braces such as `enabled ? {url: endpoint} : null`.
 
 Set `"bicepFlex.preset": "minimal"` to avoid declaration and property
 reordering. Individual settings override options supplied by optional
