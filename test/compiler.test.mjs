@@ -44,6 +44,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "param accounts array=[{type:'AzureFiles',storageAccount:{shareName:'one'}}]\noutput config object={azure:length(accounts)>0?union({first:{shareName:accounts[0].type =~ 'AzureFiles'?accounts[0].storageAccount.shareName:accounts[0].type =~ 'AzureBlob'?'blob':''}},length(accounts)>1?{second:{shareName:accounts[1].type =~ 'AzureFiles'?'x':'y'}}:{}):{}}\n",
       "param enabled bool=true\noutput config object={apiManagementConfig:enabled?{id:'management'}:null,apiDefinition:enabled?{url:'https://example.com'}:null}\n",
       "output alertRules array=filter(map(items(union({alertRules:{rule:{deploy:true}}},{alertRules:{}}).alertRules),alertRule=>union({parameterName:alertRule.key},alertRule.value)),alertRule=>alertRule.deploy)\n",
+      "param database object={sku:{name:'Basic'},hybridBenefit:false}\noutput config object={licenseType:database.sku.name =~ 'ElasticPool' || startsWith(database.sku.name,'S') || startsWith(database.sku.name,'P') || startsWith(database.sku.name,'Basic') || contains(database.sku.name,'_S_')?null:database.hybridBenefit?'BasePrice':'LicenseIncluded'}\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Keep calls inside logical ternary conditions inline by default; respect
+  explicit wrap/preserve choices and protect comments.
 - Align wrapped lambda call bodies with their `=>` headers rather than adding
   a redundant continuation indent; retain nested-call and comment safety.
 - Collapse fitting ternary object properties to a single line with tight object

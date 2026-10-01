@@ -1148,6 +1148,44 @@ test("logical conditions keep nested function calls inline unless wrapping is re
   );
 });
 
+test("logical ternary conditions keep calls inline by default", async () => {
+  const source =
+    "var config = {\n" +
+    "  licenseType: database.sku.name =~ 'ElasticPool' || startsWith(database.sku.name, 'S') || startsWith(database.sku.name, 'P') || startsWith(database.sku.name, 'Basic') || contains(database.sku.name, '_S_')\n" +
+    "    ? null\n" +
+    "    : database.hybridBenefit ? 'BasePrice' : 'LicenseIncluded'\n" +
+    "}\n";
+  assert.equal(await stable(source), source);
+  assert.match(
+    await stable(source, { bicepLogicalCallLayout: "wrap" }),
+    /contains\(\n\s+database\.sku\.name,/,
+  );
+  assert.match(
+    await stable(source, { bicepLogicalCallLayout: "preserve" }),
+    /contains\(database\.sku\.name, '_S_'\)/,
+  );
+  const broken = source.replace(
+    "contains(database.sku.name, '_S_')",
+    "contains(\n      database.sku.name,\n      '_S_'\n    )",
+  );
+  assert.match(
+    await stable(broken, {
+      bicepLogicalCallLayout: "preserve",
+      printWidth: 220,
+    }),
+    /contains\(\n\s+database\.sku\.name,/,
+  );
+  const commented = source.replace(
+    "contains(database.sku.name, '_S_')",
+    "contains(database.sku.name, /* keep */ '_S_')",
+  );
+  assert.match(await stable(commented), /\/\* keep \*\//);
+  assert.match(
+    await stable(source, { tabWidth: 4, useTabs: true }),
+    /contains\(database\.sku\.name, '_S_'\)/,
+  );
+});
+
 test("nested object loops compact consistently with tabs and spaces", async () => {
   const source =
     "output items array=[for x in ['one']:{nested:[for y in ['two']:{value:'${x}-${y}'}]}]\n";

@@ -310,7 +310,7 @@ For width-based wrapping of nonlogical `if` conditions in project configuration:
 
 In VS Code Settings, use `bicepFlex.bicepIfConditionLayout` instead.
 `bicepLogicalCallLayout` separately controls calls inside `&&`/`||`
-conditions; `"wrap"` on the new setting does not override the logical-call
+conditions, including ternary conditions; `"wrap"` on the new setting does not override the logical-call
 setting. `bicepLoopLayout: "expanded"` still expands brackets even if the
 condition remains inline. Comments and multiline literals prevent unsafe
 flattening, and a multiline loop collection can still require expanded

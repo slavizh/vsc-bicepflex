@@ -168,19 +168,6 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 FunctionCallSyntax or InstanceFunctionCallSyntax)
             .ToDictionary(wideTree.Path, node => node);
         var protectedSpans = ProtectedSpans(tree, ignored);
-        bool IsConditionalCall(SyntaxBase node, out bool logical)
-        {
-            logical = false;
-            while (tree.Parents.TryGetValue(node, out var parent))
-            {
-                if (parent is BinaryOperationSyntax binary &&
-                    binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd)
-                    logical = true;
-                if (parent is IfConditionSyntax) return true;
-                node = parent;
-            }
-            return false;
-        }
         var candidates = new List<TextEdit>();
         foreach (var node in tree.Nodes)
         {
@@ -189,8 +176,8 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 ObjectSyntax or ObjectTypeSyntax => options.BicepObjectLayout == "preserve",
                 ArraySyntax => options.BicepArrayLayout == "preserve",
                 UnionTypeSyntax => options.BicepUnionLayout == "preserve",
-                FunctionCallSyntax or InstanceFunctionCallSyntax when IsConditionalCall(node, out var logical) =>
-                    (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) == "preserve",
+                FunctionCallSyntax or InstanceFunctionCallSyntax =>
+                    ConditionCallLayout(tree, node) == "preserve",
                 _ => false,
             };
             if (!eligible || Original(tree, node) is not string original || original.Contains('\n') ||
@@ -235,17 +222,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         var changes = new List<TextEdit>();
         foreach (var call in tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax))
         {
-            var parent = call;
-            var logical = false;
-            var conditional = false;
-            while (tree.Parents.TryGetValue(parent, out parent))
-            {
-                if (parent is BinaryOperationSyntax binary &&
-                    binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd) logical = true;
-                if (parent is IfConditionSyntax) { conditional = true; break; }
-            }
-            if (!conditional ||
-                (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) != "preserve" ||
+            if (ConditionCallLayout(tree, call) != "preserve" ||
                 !authorCallBreaks.TryGetValue(tree.Path(call), out var breaks) ||
                 SyntaxTree.HasComments(call) ||
                 protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
@@ -494,41 +471,47 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             .Where(t => t.Type != SyntaxTriviaType.Whitespace && t.Text.Contains('\n')).Select(t => t.Span))
         .ToArray();
 
+    private string? ConditionCallLayout(SyntaxTree tree, SyntaxBase call)
+    {
+        var node = call;
+        var logical = false;
+        while (tree.Parents.TryGetValue(node, out var parent))
+        {
+            if (parent is BinaryOperationSyntax binary &&
+                binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd)
+                logical = true;
+            if (parent is TernaryOperationSyntax ternary &&
+                ReferenceEquals(node, ternary.ConditionExpression) && logical)
+                return options.BicepLogicalCallLayout;
+            if (parent is IfConditionSyntax)
+                return logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout;
+            node = parent;
+        }
+        return null;
+    }
+
     private string InlineConditionCalls(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
         var protectedSpans = ProtectedSpans(tree, ignored);
         var changes = new List<TextEdit>();
-        foreach (var condition in tree.Nodes.OfType<IfConditionSyntax>())
+        foreach (var call in tree.Nodes.Where(node =>
+            node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
+            source.AsSpan(node.Span.Position, node.Span.Length).Contains('\n') &&
+            ConditionCallLayout(tree, node) == "inline"))
         {
-            var expression = condition.ConditionExpression;
-            var logical = tree.Nodes.OfType<BinaryOperationSyntax>().Where(node =>
-                node.Span.Position >= expression.Span.Position &&
-                node.Span.GetEndPosition() <= expression.Span.GetEndPosition() &&
-                node.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd).ToArray();
-            foreach (var call in tree.Nodes.Where(node =>
-                node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
-                node.Span.Position >= expression.Span.Position &&
-                node.Span.GetEndPosition() <= expression.Span.GetEndPosition() &&
-                source.AsSpan(node.Span.Position, node.Span.Length).Contains('\n')))
+            if (changes.Any(edit => edit.Start <= call.Span.Position &&
+                edit.Start + edit.Length >= call.Span.GetEndPosition()) ||
+                SyntaxTree.HasComments(call) ||
+                protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
+                    span.GetEndPosition() > call.Span.Position)) continue;
+            var inline = PrettyPrinterV2.PrintValid(call, options.Printer with
             {
-                var inLogical = logical.Any(binary => binary.Span.Position <= call.Span.Position &&
-                    binary.Span.GetEndPosition() >= call.Span.GetEndPosition());
-                if (inLogical ? options.BicepLogicalCallLayout != "inline" : options.BicepIfConditionLayout != "inline")
-                    continue;
-                if (changes.Any(edit => edit.Start <= call.Span.Position &&
-                    edit.Start + edit.Length >= call.Span.GetEndPosition()) ||
-                    SyntaxTree.HasComments(call) ||
-                    protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
-                        span.GetEndPosition() > call.Span.Position)) continue;
-                var inline = PrettyPrinterV2.PrintValid(call, options.Printer with
-                {
-                    Width = int.MaxValue,
-                    InsertFinalNewline = false,
-                }).TrimEnd('\r', '\n');
-                if (!inline.Contains('\n'))
-                    changes.Add(new(call.Span.Position, call.Span.Length, inline));
-            }
+                Width = int.MaxValue,
+                InsertFinalNewline = false,
+            }).TrimEnd('\r', '\n');
+            if (!inline.Contains('\n'))
+                changes.Add(new(call.Span.Position, call.Span.Length, inline));
         }
         return TextEdit.Apply(source, changes);
     }
@@ -898,16 +881,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     span.GetEndPosition() > call.Span.Position) ||
                 changes.Any(edit => edit.Start <= call.Span.Position &&
                     edit.Start + edit.Length >= call.Span.GetEndPosition())) continue;
-            var ancestor = call;
-            var logical = false;
-            while (tree.Parents.TryGetValue(ancestor, out ancestor))
-            {
-                if (ancestor is BinaryOperationSyntax binary &&
-                    binary.OperatorToken.Type is TokenType.LogicalOr or TokenType.LogicalAnd) logical = true;
-                if (ancestor is IfConditionSyntax) break;
-            }
-            if (ancestor is IfConditionSyntax &&
-                (logical ? options.BicepLogicalCallLayout : options.BicepIfConditionLayout) == "preserve" &&
+            if (ConditionCallLayout(tree, call) == "preserve" &&
                 authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true) continue;
             var inline = RenderCompactExpression(call);
             if (inline is null || inline == SyntaxTree.Slice(source, call)) continue;
