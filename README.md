@@ -116,9 +116,14 @@ remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow
 width-based call wrapping instead; comments and multiline literals are never
 flattened to force a call inline. Other calls inside `if` conditions also stay
 inline by default; `bicepFlex.bicepIfConditionLayout: "wrap"` allows them to
-wrap. Conditional resource/module headers keep `if` on the declaration line
-even beyond the width target. Existing comments or
-directives that make that layout unsafe take precedence. Long `@description(...)` decorators
+wrap. Direct resource/module `if` conditions stay on one line by default;
+if the full header exceeds the width target, the whole `if (...) {` moves below
+`=` without reindenting the body. Set `bicepFlex.bicepConditionalHeader` to
+`"inline"` for the previous placement, `"auto"` for width-based header placement
+without compacting the condition, `"next-line"` to always move it, or
+`"preserve"` to retain authored placement. Conditional loops are unaffected.
+Comments and multiline literals that prevent safe compaction take precedence.
+Long `@description(...)` decorators
 are exempt from the width target. Strings and ordinary comments are not reflowed;
 trailing comments stay inline. Extra same-line whitespace between syntax tokens
 is reduced to one space without changing indentation, strings, comments, or

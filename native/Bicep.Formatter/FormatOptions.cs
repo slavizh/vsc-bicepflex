@@ -37,7 +37,7 @@ sealed record FormatOptions
     public string BicepResourceModuleOrder { get; init; } = "combined";
     public string BicepImportSpacing { get; init; } = "compact";
     public string BicepUnionLayout { get; init; } = "auto";
-    public string BicepConditionalHeader { get; init; } = "inline";
+    public string BicepConditionalHeader { get; init; } = "compact";
     public string BicepIfConditionLayout { get; init; } = "inline";
     public string BicepLogicalCallLayout { get; init; } = "inline";
     public string BicepLoopLayout { get; init; } = "auto";
@@ -93,7 +93,7 @@ sealed record FormatOptions
         CheckChoice("bicepDescriptionWidth", BicepDescriptionWidth, "ignore", "wrap", "preserve");
         CheckChoice("bicepDependencyOrder", BicepDependencyOrder, "ready-first", "dependencies-first", "preserve");
         CheckChoice("bicepUnionLayout", BicepUnionLayout, "auto", "multiline", "preserve");
-        CheckChoice("bicepConditionalHeader", BicepConditionalHeader, "inline", "auto", "next-line", "preserve");
+        CheckChoice("bicepConditionalHeader", BicepConditionalHeader, "compact", "inline", "auto", "next-line", "preserve");
         CheckChoice("bicepLoopLayout", BicepLoopLayout, "auto", "expanded", "preserve");
         if (BicepIfConditionLayout is not ("inline" or "wrap" or "preserve"))
         {

@@ -27,6 +27,10 @@ inside multiline calls.
 Calls under `&&`/`||` stay inline by default in any expression, even beyond width.
 Calls in `if` conditions and conditional loop headers remain inline by default;
 set `bicepFlex.bicepIfConditionLayout` to `"wrap"` for width-based wrapping.
+Direct resource/module `if` conditions stay on one line by default; when the
+header is long, `if (...) {` moves below `=`. Use
+`bicepFlex.bicepConditionalHeader: "inline"` for the previous placement or
+`"auto"` for width-based placement without compacting the condition.
 Extra spaces between syntax tokens on one line
 are collapsed without changing comments or strings. Change options in the VS Code Settings UI or User
 Settings JSON:

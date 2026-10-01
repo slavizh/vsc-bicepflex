@@ -46,6 +46,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "output alertRules array=filter(map(items(union({alertRules:{rule:{deploy:true}}},{alertRules:{}}).alertRules),alertRule=>union({parameterName:alertRule.key},alertRule.value)),alertRule=>alertRule.deploy)\n",
       "param database object={sku:{name:'Basic'},hybridBenefit:false}\noutput config object={licenseType:database.sku.name =~ 'ElasticPool' || startsWith(database.sku.name,'S') || startsWith(database.sku.name,'P') || startsWith(database.sku.name,'Basic') || contains(database.sku.name,'_S_')?null:database.hybridBenefit?'BasePrice':'LicenseIncluded'}\n",
       "param name string='Basic'\noutput enabled bool=startsWith(name,'Basic') || contains(name,'_S_')\n",
+      "param database object={geoReplicationFromPrimaryDatabase:{sqlServerName:''},status:'normal',dataEncryption:'Configured'}\nresource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'=if(!empty(database.geoReplicationFromPrimaryDatabase.sqlServerName)||database.status =~ 'failover'||database.status =~ 'readable'?false:database.dataEncryption !~ 'NotConfigured'){name:'identity',location:'westeurope'}\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

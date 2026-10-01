@@ -676,6 +676,40 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         // Reparse after union edits so conditional offsets remain authoritative.
         tree = new SyntaxTree(Parse(source).ProgramSyntax);
         protectedSpans = ProtectedSpans(tree, ignored);
+        if (options.BicepConditionalHeader == "compact")
+        {
+            changes = [];
+            foreach (var condition in tree.Nodes.OfType<IfConditionSyntax>())
+            {
+                if (options.BicepIfConditionLayout == "wrap" ||
+                    IsProtected(condition) || !tree.Parents.TryGetValue(condition, out var parent) ||
+                    parent is not ResourceDeclarationSyntax and not ModuleDeclarationSyntax ||
+                    !SyntaxTree.Slice(source, condition.ConditionExpression).Contains('\n') ||
+                    SyntaxTree.HasComments(condition.ConditionExpression) ||
+                    protectedSpans.Any(span => span.Position < condition.ConditionExpression.Span.GetEndPosition() &&
+                        span.GetEndPosition() > condition.ConditionExpression.Span.Position) ||
+                    tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
+                        node.Span.Position >= condition.ConditionExpression.Span.Position &&
+                        node.Span.GetEndPosition() <= condition.ConditionExpression.Span.GetEndPosition())
+                        .Any(call => CallLayout(tree, call) switch
+                        {
+                            "wrap" => SyntaxTree.Slice(source, call).Contains('\n'),
+                            "preserve" => authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true,
+                            _ => false,
+                        })) continue;
+                var inline = PrettyPrinterV2.PrintValid(condition.ConditionExpression, options.Printer with
+                {
+                    Width = int.MaxValue,
+                    InsertFinalNewline = false,
+                }).TrimEnd('\r', '\n');
+                if (!inline.Contains('\n'))
+                    changes.Add(new(condition.ConditionExpression.Span.Position,
+                        condition.ConditionExpression.Span.Length, inline));
+            }
+            source = TextEdit.Apply(source, changes);
+            tree = new SyntaxTree(Parse(source).ProgramSyntax);
+            protectedSpans = ProtectedSpans(tree, ignored);
+        }
         changes = [];
         var indents = new Dictionary<int, int>();
         foreach (var condition in tree.Nodes.OfType<IfConditionSyntax>())
@@ -694,16 +728,19 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                 indents.GetValueOrDefault(lineStart) * options.TabWidth;
             if (options.BicepConditionalHeader == "preserve" &&
                 !authorConditionalNextLine.GetValueOrDefault(tree.Path(condition))) continue;
-            if (options.BicepConditionalHeader == "auto" && width <= options.PrintWidth) continue;
+            if ((options.BicepConditionalHeader is "auto" or "compact") && width <= options.PrintWidth) continue;
             changes.Add(new(start, keyword - start, "\n" + LineIndent(keyword) +
                 string.Concat(Enumerable.Repeat(indent, indents.GetValueOrDefault(lineStart) + 1))));
-            for (var newline = source.IndexOf('\n', body.OpenBrace.Span.GetEndPosition());
-                newline >= 0 && newline < body.CloseBrace.Span.Position;
-                newline = source.IndexOf('\n', newline + 1))
+            if (options.BicepConditionalHeader != "compact")
             {
-                var position = newline + 1;
-                if (protectedSpans.Any(s => s.Position < position && s.GetEndPosition() > position)) continue;
-                indents[position] = indents.GetValueOrDefault(position) + 1;
+                for (var newline = source.IndexOf('\n', body.OpenBrace.Span.GetEndPosition());
+                    newline >= 0 && newline < body.CloseBrace.Span.Position;
+                    newline = source.IndexOf('\n', newline + 1))
+                {
+                    var position = newline + 1;
+                    if (protectedSpans.Any(s => s.Position < position && s.GetEndPosition() > position)) continue;
+                    indents[position] = indents.GetValueOrDefault(position) + 1;
+                }
             }
         }
         foreach (var (position, levels) in indents)

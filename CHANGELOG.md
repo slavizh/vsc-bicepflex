@@ -2,6 +2,10 @@
 
 ## 0.2.1 (unreleased)
 
+- Keep direct resource/module `if` conditions on one line and move long
+  complete headers below `=` by default via `bicepConditionalHeader: "compact"`;
+  retain the former `"inline"` behavior and existing `"auto"`, `"next-line"`,
+  and `"preserve"` choices.
 - Apply logical-call layout consistently under `&&`/`||` in any expression,
   not only `if` and ternary conditions, including authored preserve mode.
 - Keep calls inside logical ternary conditions inline by default; respect

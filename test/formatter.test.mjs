@@ -386,10 +386,10 @@ test("description decorators are exempt from print width", async () => {
   assert.equal(output.split("\n")[0], `@description('${description}')`);
 });
 
-test("conditional header stays on the declaration line beyond print width", async () => {
+test("inline conditional header can stay on the declaration line beyond print width", async () => {
   const output = await stable(
     "param deploy bool=true\nresource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'=if(deploy){name:'example',location:'westeurope'}\n",
-    { printWidth: 40 },
+    { printWidth: 40, bicepConditionalHeader: "inline" },
   );
   assert.match(output, /^resource identity .* = if \(deploy\) \{$/m);
 });
@@ -954,6 +954,64 @@ test("direct if conditions keep calls inline unless wrapping is requested", asyn
     bicepIfConditionLayout: "wrap",
   });
   assert.match(wrapped, /if \(union\(\n\s+defaultProps,/);
+});
+
+test("long direct if conditions move intact below the resource declaration", async () => {
+  const source =
+    "resource transparentDataEncryption 'Microsoft.Sql/servers/databases/transparentDataEncryption@2025-02-01-preview' = if (!empty(database.geoReplicationFromPrimaryDatabase.sqlServerName) || database.status =~ 'failover' || database.status =~ 'readable' ? false : database.dataEncryption !~ 'NotConfigured') {\n" +
+    "  name: 'current'\n" +
+    "  parent: sqlDatabaseRes\n" +
+    "  properties: {\n" +
+    "    state: database.dataEncryption\n" +
+    "  }\n" +
+    "}\n";
+  const expected = source.replace(" = if (", " =\n  if (");
+  assert.equal(await stable(source), expected);
+  const headerWidth = source.split("\n")[0].length;
+  assert.equal(await stable(source, { printWidth: headerWidth }), source);
+  assert.equal(await stable(source, { printWidth: headerWidth - 1 }), expected);
+  assert.match(
+    await stable(source, { bicepConditionalHeader: "inline" }),
+    /readable'\n  \? false/,
+  );
+  assert.match(
+    await stable(source, { bicepConditionalHeader: "auto" }),
+    /readable'\n  \? false/,
+  );
+  const module = source
+    .replace(
+      "resource transparentDataEncryption 'Microsoft.Sql/servers/databases/transparentDataEncryption@2025-02-01-preview'",
+      "module transparentDataEncryption './database.bicep'",
+    )
+    .replace(
+      "  parent: sqlDatabaseRes\n  properties: {\n    state: database.dataEncryption\n  }",
+      "  params: {\n    state: database.dataEncryption\n  }",
+    );
+  assert.match(
+    await stable(module, { printWidth: 85 }),
+    / =\n  if \([^\n]*\? false : [^\n]*\) \{\n  name:/,
+  );
+  const commented = source.replace(
+    "database.status =~ 'readable'",
+    "database.status =~ /* keep */ 'readable'",
+  );
+  assert.match(await stable(commented), /\/\* keep \*\//);
+  assert.equal(
+    await stable("// prettier-ignore\n" + source),
+    "// prettier-ignore\n" + source,
+  );
+  assert.match(
+    await stable(source, { useTabs: true, tabWidth: 4 }),
+    / =\n\tif \([^\n]*\? false : [^\n]*\) \{\n\tname:/,
+  );
+  const preserved = source.replace(
+    "database.status =~ 'readable'",
+    "empty({\n    flag: true\n  })",
+  );
+  assert.match(
+    await stable(preserved, { bicepObjectLayout: "preserve" }),
+    /empty\(\{\n\s+flag: true\n\s+\}\)/,
+  );
 });
 
 test("object loop wrapping changes at the exact header width", async () => {

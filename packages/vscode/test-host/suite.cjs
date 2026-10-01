@@ -143,6 +143,23 @@ async function run() {
     conditionalLoop.getText(),
     / = \[for item in \(union\(defaults, overrides\)\.microsoftEntraId\.validation\.jwtClaimChecks\.allowedClientApplications\) : if \(union\(defaults, overrides\)\.microsoftEntraId\.referenceType == 'UniqueNames'\) \{\n  uniqueName: item\n\}\]/,
   );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "direct-if.bicep"),
+    "resource transparentDataEncryption 'Microsoft.Sql/servers/databases/transparentDataEncryption@2025-02-01-preview' = if (!empty(database.geoReplicationFromPrimaryDatabase.sqlServerName) || database.status =~ 'failover' || database.status =~ 'readable' ? false : database.dataEncryption !~ 'NotConfigured') {\n  name: 'current'\n  parent: sqlDatabaseRes\n  properties: {\n    state: database.dataEncryption\n  }\n}\n",
+  );
+  const directIf = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "direct-if.bicep"),
+  );
+  await vscode.window.showTextDocument(directIf);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(
+    directIf.getText(),
+    / =\n  if \([^\n]*\? false : [^\n]*\) \{\n  name: 'current'/,
+  );
+  assert.equal(
+    config.inspect("bicepConditionalHeader").defaultValue,
+    "compact",
+  );
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
@@ -264,7 +281,7 @@ async function run() {
     if (settingDescription.includes("Default:")) break;
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  assert.match(settingDescription, /Default:.*inline/);
+  assert.match(settingDescription, /Default:.*compact/);
   assert.match(settingDescription, /next-line.*always put if on the next line/);
   await config.update(
     "bicepTabWidth",

@@ -244,6 +244,8 @@ const choiceDescriptions = {
     preserve: "keep source union layout even beyond width when safe",
   },
   bicepConditionalHeader: {
+    compact:
+      "keep direct if conditions on one line and move a long header below =",
     inline: "keep direct resource/module if headers inline",
     auto: "move if to the next line only when the header exceeds width",
     "next-line": "always put if on the next line",

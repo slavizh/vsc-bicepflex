@@ -226,9 +226,9 @@ export const options = {
     "auto",
   ),
   bicepConditionalHeader: choice(
-    "Keep direct if headers inline, move when long, always move, or retain authored placement.",
-    ["inline", "auto", "next-line", "preserve"],
-    "inline",
+    "Keep direct resource/module if conditions compact and move long headers, or choose legacy placement.",
+    ["compact", "inline", "auto", "next-line", "preserve"],
+    "compact",
   ),
   bicepIfConditionLayout: choice(
     "Keep if-condition calls and conditional loop headers inline, width-aware, or authored.",
