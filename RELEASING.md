@@ -16,8 +16,11 @@
    Linux, Windows, and macOS CI before merging. Linux CI additionally runs
    coverage measurement, the official corpus, and a real VS Code host test
    against the packaged VSIX.
-4. Configure a protected GitHub `release` environment with reviewers.
-   Store `VSCE_PAT` as a secret only if publishing to the Marketplace.
+4. Use the protected GitHub `release` environment, restricted to `v*` tags
+   and requiring approval by the repository owner. Store `VSCE_PAT` as an
+   environment secret only if publishing to the Marketplace. Rotate the
+   credential before it expires; global Azure DevOps PATs stop working on
+   December 1, 2026.
 
 ## Build and test
 
