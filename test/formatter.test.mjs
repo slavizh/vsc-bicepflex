@@ -154,6 +154,18 @@ test("attached comments do not split compact plain parameter blocks", async () =
     "param platform string\n" +
     "param tags object\n";
   assert.equal(await stable(source), expected);
+  const notes = "// Primary note\n// Secondary note";
+  assert.equal(
+    await stable(source.replace("// Options for the secondary profile", notes)),
+    expected.replace("// Options for the secondary profile", notes),
+  );
+  const mixedNotes = "// Primary note\n/* Secondary note */";
+  assert.equal(
+    await stable(
+      source.replace("// Options for the secondary profile", mixedNotes),
+    ),
+    expected.replace("// Options for the secondary profile", mixedNotes),
+  );
   assert.equal(
     await stable(source.replace("// Options", "\n// Options")),
     expected,
@@ -1275,6 +1287,14 @@ test("logical conditions keep nested function calls inline unless wrapping is re
     "union(baseGroup, /* retain */ group).batches",
   );
   assert.match(await stable(commented), /\/\* retain \*\//);
+  const lineCommented = input.replace(
+    "union(baseGroup, group).batches",
+    "union(baseGroup, // retain\n group).batches",
+  );
+  assert.match(
+    await stable(lineCommented),
+    /union\(\n\s*baseGroup,\n\s*\/\/ retain\n\s*group\n\s*\)\.batches/,
+  );
   assert.doesNotMatch(
     await stable(
       "output value object = { result: union(baseGroup, group) }\n",
