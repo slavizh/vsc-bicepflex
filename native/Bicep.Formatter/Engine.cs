@@ -183,6 +183,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             };
             if (!eligible || Original(tree, node) is not string original || original.Contains('\n') ||
                 !SyntaxTree.Slice(source, node).Contains('\n') || SyntaxTree.HasComments(node) ||
+                HasRequiredCallBreaks(tree, source, node, includeRoot: false) ||
                 protectedSpans.Any(span => span.Position < node.Span.GetEndPosition() &&
                     span.GetEndPosition() > node.Span.Position) ||
                 !wideNodes.TryGetValue(tree.Path(node), out var wideNode)) continue;
@@ -487,6 +488,18 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         return null;
     }
 
+    private bool HasRequiredCallBreaks(SyntaxTree tree, string source, SyntaxBase expression, bool includeRoot = true) =>
+        tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
+            (includeRoot || !ReferenceEquals(node, expression)) &&
+            node.Span.Position >= expression.Span.Position &&
+            node.Span.GetEndPosition() <= expression.Span.GetEndPosition())
+            .Any(call => CallLayout(tree, call) switch
+            {
+                "wrap" => SyntaxTree.Slice(source, call).Contains('\n'),
+                "preserve" => authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true,
+                _ => false,
+            });
+
     private string InlineConfiguredCalls(string source, HashSet<string> ignored)
     {
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
@@ -500,6 +513,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             if (changes.Any(edit => edit.Start <= call.Span.Position &&
                 edit.Start + edit.Length >= call.Span.GetEndPosition()) ||
                 SyntaxTree.HasComments(call) ||
+                HasRequiredCallBreaks(tree, source, call, includeRoot: false) ||
                 protectedSpans.Any(span => span.Position < call.Span.GetEndPosition() &&
                     span.GetEndPosition() > call.Span.Position)) continue;
             var inline = PrettyPrinterV2.PrintValid(call, options.Printer with
@@ -687,17 +701,9 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     parent is not ResourceDeclarationSyntax and not ModuleDeclarationSyntax ||
                     !SyntaxTree.Slice(source, condition.ConditionExpression).Contains('\n') ||
                     SyntaxTree.HasComments(condition.ConditionExpression) ||
+                    HasRequiredCallBreaks(tree, source, condition.ConditionExpression) ||
                     protectedSpans.Any(span => span.Position < condition.ConditionExpression.Span.GetEndPosition() &&
-                        span.GetEndPosition() > condition.ConditionExpression.Span.Position) ||
-                    tree.Nodes.Where(node => node is FunctionCallSyntax or InstanceFunctionCallSyntax &&
-                        node.Span.Position >= condition.ConditionExpression.Span.Position &&
-                        node.Span.GetEndPosition() <= condition.ConditionExpression.Span.GetEndPosition())
-                        .Any(call => CallLayout(tree, call) switch
-                        {
-                            "wrap" => SyntaxTree.Slice(source, call).Contains('\n'),
-                            "preserve" => authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true,
-                            _ => false,
-                        })) continue;
+                        span.GetEndPosition() > condition.ConditionExpression.Span.Position)) continue;
                 var inline = PrettyPrinterV2.PrintValid(condition.ConditionExpression, options.Printer with
                 {
                     Width = int.MaxValue,
@@ -854,8 +860,10 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         return TextEdit.Apply(expression, changes);
     }
 
-    private string? RenderCompactExpression(SyntaxBase expression, bool allowPreservedCompactObjects = false)
+    private string? RenderCompactExpression(SyntaxTree tree, string source, SyntaxBase expression,
+        bool allowPreservedCompactObjects = false)
     {
+        if (HasRequiredCallBreaks(tree, source, expression)) return null;
         var body = options.BicepObjectLayout == "preserve" && !allowPreservedCompactObjects
             ? expression
             : new InlineObjectArguments().Rewrite(expression);
@@ -890,7 +898,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     span.GetEndPosition() > array.Span.Position) ||
                 changes.Any(edit => edit.Start <= array.Span.Position &&
                     edit.Start + edit.Length >= array.Span.GetEndPosition())) continue;
-            var values = items.Select(item => RenderCompactExpression(item.Value, true)).ToArray();
+            var values = items.Select(item => RenderCompactExpression(tree, source, item.Value, true)).ToArray();
             if (values.Any(value => value is null)) continue;
             var inline = "[" + string.Join(", ", values) + "]";
             var lineStart = source.LastIndexOf('\n', array.Span.Position) + 1;
@@ -921,7 +929,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             var prefixStart = source.LastIndexOf('\n', property.Span.Position) + 1;
             var prefix = source[prefixStart..ternary.Span.Position];
             if (prefix.Contains('\n')) continue;
-            var inline = RenderCompactExpression(ternary);
+            var inline = RenderCompactExpression(tree, source, ternary);
             if (inline is null || inline == SyntaxTree.Slice(source, ternary)) continue;
             var suffixEnd = source.IndexOf('\n', ternary.Span.GetEndPosition());
             if (suffixEnd < 0) suffixEnd = source.Length;
@@ -953,9 +961,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
                     span.GetEndPosition() > call.Span.Position) ||
                 changes.Any(edit => edit.Start <= call.Span.Position &&
                     edit.Start + edit.Length >= call.Span.GetEndPosition())) continue;
-            if (CallLayout(tree, call) == "preserve" &&
-                authorCallBreaks.GetValueOrDefault(tree.Path(call))?.Contains(true) == true) continue;
-            var inline = RenderCompactExpression(call);
+            var inline = RenderCompactExpression(tree, source, call);
             if (inline is null || inline == SyntaxTree.Slice(source, call)) continue;
             var start = source.LastIndexOf('\n', call.Span.Position) + 1;
             var end = source.IndexOf('\n', call.Span.GetEndPosition());
@@ -987,7 +993,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             var header = source[loop.ForKeyword.Span.Position..loop.Body.Span.Position];
             if (!string.IsNullOrWhiteSpace(before) || !string.IsNullOrWhiteSpace(after) ||
                 header.Contains('\n')) continue;
-            var inline = RenderCompactExpression(loop.Body);
+            var inline = RenderCompactExpression(tree, source, loop.Body);
             if (inline is null) continue;
             var replacement = "[" + header + inline + "]";
             var lineStart = source.LastIndexOf('\n', loop.OpenSquare.Span.Position) + 1;

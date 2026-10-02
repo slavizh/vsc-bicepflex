@@ -1419,6 +1419,69 @@ test("calls under logical operators use the same layout outside condition header
   );
 });
 
+test("outer call layout does not flatten logical calls with their own policy", async () => {
+  const source =
+    "resource sample 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (bool(contains('long-option-value', 'alpha') || contains('another-long-option-value', 'beta'))) {\n" +
+    "  name: 'sample'\n  location: 'westeurope'\n}\n";
+  for (const bicepIfConditionLayout of ["preserve", "inline"]) {
+    const output = await stable(source, {
+      printWidth: 35,
+      bicepConditionalHeader: "inline",
+      bicepIfConditionLayout,
+      bicepLogicalCallLayout: "wrap",
+    });
+    assert.match(output, /contains\(\n\s+'long-option-value',/);
+  }
+  const authored = source.replace(
+    "contains('another-long-option-value', 'beta')",
+    "contains(\n  'another-long-option-value',\n  'beta'\n)",
+  );
+  assert.match(
+    await stable(authored, {
+      printWidth: 35,
+      bicepConditionalHeader: "inline",
+      bicepIfConditionLayout: "inline",
+      bicepLogicalCallLayout: "preserve",
+    }),
+    /contains\(\n\s+'another-long-option-value',/,
+  );
+});
+
+test("compact expressions retain nested source-preserved logical call breaks", async () => {
+  const nested =
+    "contains('long-option-value', 'alpha') || contains(\n'another-long-option-value',\n'beta'\n)";
+  const examples = [
+    `var sample = union({value: ${nested}}, {ready: true})\n`,
+    `var sample = [{value: ${nested}}]\n`,
+    `var sample = {value: true ? {ready: ${nested}} : null}\n`,
+    `var sample = [for item in ['a']: union({value: ${nested}}, {ready: item})]\n`,
+  ];
+  for (const source of examples) {
+    assert.match(
+      await stable(source, {
+        bicepLogicalCallLayout: "preserve",
+        printWidth: 180,
+      }),
+      /contains\(\n\s+'another-long-option-value',/,
+    );
+  }
+  assert.match(
+    await stable(`using none\nparam sample = [{value: ${nested}}]\n`, {
+      filepath: resolve("test", "fixtures", "main.bicepparam"),
+      bicepLogicalCallLayout: "preserve",
+      printWidth: 180,
+    }),
+    /contains\(\n\s+'another-long-option-value',/,
+  );
+  assert.match(
+    await stable(
+      "var sample = union({value: contains('long-option-value', 'alpha') || contains('another-long-option-value', 'beta')}, {ready: true})\n",
+      { bicepLogicalCallLayout: "wrap", printWidth: 45 },
+    ),
+    /contains\(\n\s+'another-long-option-value',/,
+  );
+});
+
 test("nested object loops compact consistently with tabs and spaces", async () => {
   const source =
     "output items array=[for x in ['one']:{nested:[for y in ['two']:{value:'${x}-${y}'}]}]\n";

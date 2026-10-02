@@ -2,6 +2,8 @@
 
 ## 0.3.0 (unreleased)
 
+- Respect wrapped and source-preserved nested logical calls when an enclosing
+  conditional call or compact expression would otherwise flatten them.
 - Use the `cloudadministrator` Marketplace publisher. Existing
   `editor.defaultFormatter` settings must use `cloudadministrator.bicepflex`.
 - Keep fitting arrays of one or two small objects compact, including within
