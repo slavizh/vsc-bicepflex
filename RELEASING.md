@@ -1,6 +1,6 @@
 # Release checklist
 
-1. Verify ownership of the `slavizh` Visual Studio Marketplace publisher. Review
+1. Verify ownership of the `cloudadministrator` Visual Studio Marketplace publisher. Review
    the VSIX manifest, Bicep version, formatting rules, and all redistributed
    dependency licenses. Do not imply Microsoft or Prettier endorsement.
 2. Update the version only in `packages/vscode/package.json` (for example,

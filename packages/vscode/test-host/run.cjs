@@ -65,10 +65,10 @@ async function main() {
       path.join(workspace, ".vscode", "settings.json"),
       JSON.stringify({
         "[bicep]": {
-          "editor.defaultFormatter": "slavizh.bicepflex",
+          "editor.defaultFormatter": "cloudadministrator.bicepflex",
         },
         "[bicep-params]": {
-          "editor.defaultFormatter": "slavizh.bicepflex",
+          "editor.defaultFormatter": "cloudadministrator.bicepflex",
         },
       }),
     );

@@ -6,7 +6,9 @@ const vscode = require("vscode");
 async function run() {
   const folder = vscode.workspace.workspaceFolders?.[0];
   assert.ok(folder);
-  const extension = vscode.extensions.getExtension("slavizh.bicepflex");
+  const extension = vscode.extensions.getExtension(
+    "cloudadministrator.bicepflex",
+  );
   assert.ok(extension);
   await extension.activate();
   const contributed =

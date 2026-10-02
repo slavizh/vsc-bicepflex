@@ -1,8 +1,8 @@
 {
   "[bicep]": {
-    "editor.defaultFormatter": "slavizh.bicepflex"
+    "editor.defaultFormatter": "cloudadministrator.bicepflex"
   },
   "[bicep-params]": {
-    "editor.defaultFormatter": "slavizh.bicepflex"
+    "editor.defaultFormatter": "cloudadministrator.bicepflex"
   }
 }

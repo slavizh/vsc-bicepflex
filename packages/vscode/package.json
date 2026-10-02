@@ -4,7 +4,7 @@
   "description": "Standalone, configurable Bicep and Bicep parameters formatter backed by the Bicep compiler.",
   "version": "0.3.0",
   "private": true,
-  "publisher": "slavizh",
+  "publisher": "cloudadministrator",
   "license": "MIT",
   "type": "module",
   "main": "./dist/extension.mjs",

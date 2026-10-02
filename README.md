@@ -35,10 +35,10 @@ for the two Bicep languages in VS Code User Settings (or workspace settings):
 ```json
 {
   "[bicep]": {
-    "editor.defaultFormatter": "slavizh.bicepflex"
+    "editor.defaultFormatter": "cloudadministrator.bicepflex"
   },
   "[bicep-params]": {
-    "editor.defaultFormatter": "slavizh.bicepflex"
+    "editor.defaultFormatter": "cloudadministrator.bicepflex"
   }
 }
 ```
