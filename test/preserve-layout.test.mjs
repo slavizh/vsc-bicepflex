@@ -123,9 +123,9 @@ test("preserve also retains inline object layout in Bicep parameter files", asyn
 test("compact call-expression loops use tight braces in parameter files", async () => {
   const options = { plugins: [plugin], parser: "bicepparam" };
   const source =
-    "using './main.bicep'\nvar apps=[]\nvar values=[for x in apps: union(x, {slots:[]})]\n";
+    "using './main.bicep'\nvar apps=[]\nvar values=[for x in apps: union(x, {entries:[]})]\n";
   const expected =
-    "using './main.bicep'\n\nvar apps = []\n\nvar values = [for x in apps: union(x, {slots: []})]\n";
+    "using './main.bicep'\n\nvar apps = []\n\nvar values = [for x in apps: union(x, {entries: []})]\n";
   assert.equal(await format(source, options), expected);
   assert.equal(await format(expected, options), expected);
 });
@@ -133,9 +133,9 @@ test("compact call-expression loops use tight braces in parameter files", async 
 test("fitting ternary properties compact in Bicep parameter files", async () => {
   const options = { plugins: [plugin], parser: "bicepparam" };
   const source =
-    "using './main.bicep'\nvar config={\n  apiDefinition: !empty(slotSettings.apiDefinition) ? {\n    url:slotSettings.apiDefinition\n  } : null\n}\n";
+    "using './main.bicep'\nvar config={\n  spec: !empty(profileOptions.spec) ? {\n    url:profileOptions.spec\n  } : null\n}\n";
   const expected =
-    "using './main.bicep'\n\nvar config = {\n  apiDefinition: !empty(slotSettings.apiDefinition) ? {url: slotSettings.apiDefinition} : null\n}\n";
+    "using './main.bicep'\n\nvar config = {\n  spec: !empty(profileOptions.spec) ? {url: profileOptions.spec} : null\n}\n";
   assert.equal(await format(source, options), expected);
   assert.equal(await format(expected, options), expected);
 });

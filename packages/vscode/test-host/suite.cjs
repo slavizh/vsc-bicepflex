@@ -92,7 +92,7 @@ async function run() {
   }
   const config = vscode.workspace.getConfiguration("bicepFlex");
   const extensionSource =
-    "extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0'  as microsoftGraphV1_0\n";
+    "extension 'br:example.invalid/bicep/extensions/sample/v1:1.0.0'  as sampleExtension\n";
   await fs.writeFile(
     path.join(folder.uri.fsPath, "extension-alias.bicep"),
     extensionSource,
@@ -132,7 +132,7 @@ async function run() {
   assert.match(loopTernary.getText(), /\n {6}\? name\n {6}: 'other'\n\]/);
   await fs.writeFile(
     path.join(folder.uri.fsPath, "conditional-loop.bicep"),
-    "resource apps 'Microsoft.Graph/applications@v1.0' existing = [for item in (union(defaults, overrides).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications): if (union(defaults, overrides).microsoftEntraId.referenceType == 'UniqueNames') {uniqueName:item}]\n",
+    "resource apps 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = [for item in (union(defaults, overrides).directory.validation.rules.eligibleEntryIdentifiers): if (union(defaults, overrides).directory.keyStyle == 'Aliases') {alias:item}]\n",
   );
   const conditionalLoop = await vscode.workspace.openTextDocument(
     vscode.Uri.joinPath(folder.uri, "conditional-loop.bicep"),
@@ -141,11 +141,11 @@ async function run() {
   await vscode.commands.executeCommand("editor.action.formatDocument");
   assert.match(
     conditionalLoop.getText(),
-    / = \[for item in \(union\(defaults, overrides\)\.microsoftEntraId\.validation\.jwtClaimChecks\.allowedClientApplications\) : if \(union\(defaults, overrides\)\.microsoftEntraId\.referenceType == 'UniqueNames'\) \{\n  uniqueName: item\n\}\]/,
+    / = \[for item in \(union\(defaults, overrides\)\.directory\.validation\.rules\.eligibleEntryIdentifiers\) : if \(union\(defaults, overrides\)\.directory\.keyStyle == 'Aliases'\) \{\n  alias: item\n\}\]/,
   );
   await fs.writeFile(
     path.join(folder.uri.fsPath, "direct-if.bicep"),
-    "resource transparentDataEncryption 'Microsoft.Sql/servers/databases/transparentDataEncryption@2025-02-01-preview' = if (!empty(database.geoReplicationFromPrimaryDatabase.sqlServerName) || database.status =~ 'failover' || database.status =~ 'readable' ? false : database.dataEncryption !~ 'NotConfigured') {\n  name: 'current'\n  parent: sqlDatabaseRes\n  properties: {\n    state: database.dataEncryption\n  }\n}\n",
+    "resource conditionalIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (!empty(recordConfig.replica.sourceName) || recordConfig.status =~ 'paused' || recordConfig.status =~ 'active' ? false : recordConfig.protectionMode !~ 'Disabled') {\n  name: 'current'\n  parent: parentIdentity\n  properties: {\n    state: recordConfig.protectionMode\n  }\n}\n",
   );
   const directIf = await vscode.workspace.openTextDocument(
     vscode.Uri.joinPath(folder.uri, "direct-if.bicep"),

@@ -47,22 +47,22 @@ test("defaults preserve line-ending convention, use two spaces, final newline, a
 
 test("redundant inline spacing is removed without changing strings, comments, or ignored declarations", async () => {
   const extension =
-    "extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:1.0.0'";
+    "extension 'br:example.invalid/bicep/extensions/sample/v1:1.0.0'";
   assert.equal(
-    await stable(`${extension}  as microsoftGraphV1_0\n`),
-    `${extension} as microsoftGraphV1_0\n`,
+    await stable(`${extension}  as sampleExtension\n`),
+    `${extension} as sampleExtension\n`,
   );
   assert.equal(
-    await stable(`${extension}    as    microsoftGraphV1_0\n`),
-    `${extension} as microsoftGraphV1_0\n`,
+    await stable(`${extension}    as    sampleExtension\n`),
+    `${extension} as sampleExtension\n`,
   );
   assert.equal(
     await stable("param  name  string\nvar  value = 'a  b' // keep  comment\n"),
     "param name string\n\nvar value = 'a  b' // keep  comment\n",
   );
   assert.equal(
-    await stable(`// prettier-ignore\n${extension}  as microsoftGraphV1_0\n`),
-    `// prettier-ignore\n${extension}  as microsoftGraphV1_0\n`,
+    await stable(`// prettier-ignore\n${extension}  as sampleExtension\n`),
+    `// prettier-ignore\n${extension}  as sampleExtension\n`,
   );
 });
 
@@ -134,63 +134,61 @@ test("other decorators stay grouped and comment boundaries retain their spacing"
 
 test("attached comments do not split compact plain parameter blocks", async () => {
   const source =
-    "param slot object\n" +
-    "// Settings that are not inherited from site\n" +
-    "param slotSettings object\n" +
-    "param siteName string\n" +
-    "@allowed([\n  'app'\n  'functionapp'\n  'api'\n  'functionapp,workflowapp'\n])\n" +
+    "param profile object\n" +
+    "// Options for the secondary profile\n" +
+    "param profileOptions object\n" +
+    "param profileName string\n" +
+    "@allowed([\n  'alpha'\n  'beta'\n  'gamma'\n  'beta,gamma'\n])\n" +
     "param kind string\n" +
-    "param isHyperV bool = false\n" +
-    "param operatingSystem string\n" +
+    "param usesAcceleration bool = false\n" +
+    "param platform string\n" +
     "param tags object\n";
   const expected =
-    "param slot object\n" +
-    "// Settings that are not inherited from site\n" +
-    "param slotSettings object\n" +
-    "param siteName string\n" +
-    "@allowed(['app', 'functionapp', 'api', 'functionapp,workflowapp'])\n" +
+    "param profile object\n" +
+    "// Options for the secondary profile\n" +
+    "param profileOptions object\n" +
+    "param profileName string\n" +
+    "@allowed(['alpha', 'beta', 'gamma', 'beta,gamma'])\n" +
     "param kind string\n" +
-    "param isHyperV bool = false\n" +
-    "param operatingSystem string\n" +
+    "param usesAcceleration bool = false\n" +
+    "param platform string\n" +
     "param tags object\n";
   assert.equal(await stable(source), expected);
   assert.equal(
-    await stable(source.replace("// Settings", "\n// Settings")),
+    await stable(source.replace("// Options", "\n// Options")),
     expected,
   );
   assert.equal(
     await stable(
       source.replace(
-        "// Settings that are not inherited from site",
-        "/* Settings that are not inherited from site */",
+        "// Options for the secondary profile",
+        "/* Options for the secondary profile */",
       ),
     ),
     expected.replace(
-      "// Settings that are not inherited from site",
-      "/* Settings that are not inherited from site */",
+      "// Options for the secondary profile",
+      "/* Options for the secondary profile */",
     ),
   );
-  const block = "/* Settings that are not inherited\n   from site */";
+  const block = "/* A separate note about this\n   secondary profile */";
   assert.equal(
-    await stable(
-      source.replace("// Settings that are not inherited from site", block),
-    ),
-    expected.replace("// Settings that are not inherited from site", block),
+    await stable(source.replace("// Options for the secondary profile", block)),
+    expected.replace("// Options for the secondary profile", block),
   );
   assert.match(
     await stable(
       source.replace(
-        "param slotSettings object",
-        "@description('Slot settings')\nparam slotSettings object",
+        "param profileOptions object",
+        "@description('Profile options')\nparam profileOptions object",
       ),
     ),
-    /param slot object\n\n\/\/ Settings that are not inherited from site\n@description\('Slot settings'\)/,
+    /param profile object\n\n\/\/ Options for the secondary profile\n@description\('Profile options'\)/,
   );
   assert.match(
-    await stable(source.replace("// Settings", "\n// Settings"), {
+    await stable(source.replace("// Options", "\n// Options"), {
       bicepParameterSpacing: "preserve",
     }),
-    /param slot object\n\n\/\/ Settings/,
+    /param profile object\n\n\/\/ Options/,
   );
 });
 
@@ -404,27 +402,27 @@ test("single lambda parameter parentheses are removed", async () => {
 test("wrapped lambda call bodies align with their lambda headers", async () => {
   const source =
     "var config = {\n" +
-    "  alertRules: filter(map(items(union(defaultResourceGroup, resourceGroup).alertRules), alertRule => union({parameterName: alertRule.key}, alertRule.value)), alertRule => alertRule.deploy)\n" +
+    "  policies: filter(map(items(union(baseGroup, group).policies), policy => union({lookupKey: policy.key}, policy.value)), policy => policy.deploy)\n" +
     "}\n";
   const expected =
     "var config = {\n" +
-    "  alertRules: filter(\n" +
+    "  policies: filter(\n" +
     "    map(\n" +
-    "      items(union(defaultResourceGroup, resourceGroup).alertRules),\n" +
-    "      alertRule =>\n" +
-    "      union({parameterName: alertRule.key}, alertRule.value)\n" +
+    "      items(union(baseGroup, group).policies),\n" +
+    "      policy =>\n" +
+    "      union({lookupKey: policy.key}, policy.value)\n" +
     "    ),\n" +
-    "    alertRule => alertRule.deploy\n" +
+    "    policy => policy.deploy\n" +
     "  )\n" +
     "}\n";
   assert.equal(await stable(source), expected);
   assert.match(
     await stable(source, { tabWidth: 4 }),
-    /\n {12}alertRule =>\n {12}union\(/,
+    /\n {12}policy =>\n {12}union\(/,
   );
   assert.match(
     await stable(source, { tabWidth: 4, useTabs: true }),
-    /\n\t{3}alertRule =>\n\t{3}union\(/,
+    /\n\t{3}policy =>\n\t{3}union\(/,
   );
   const nested = await stable(
     "var result = map(values, value => filter(value.items, item => union({active: item.active}, item).active))\n",
@@ -536,31 +534,31 @@ test("long calls and ternaries wrap at grammar-valid boundaries", async () => {
 test("deeply nested conditional property keeps two-space indentation", async () => {
   const source = [
     "param kind string",
-    "param slot object",
-    "param operatingSystem string",
-    "output site object = {",
+    "param profile object",
+    "param platform string",
+    "output service object = {",
     "  properties: {",
-    "    siteConfig: {",
-    "      linuxFxVersion: kind == 'functionapp' && slot.functionRuntimeVersion == 0",
+    "    runtimeOptions: {",
+    "      runtimeLabel: kind == 'worker' && profile.runtimeRevision == 0",
     "        ? null",
-    "        : operatingSystem == 'Linux'",
-    "            ? empty(slot.linuxFxVersion)",
-    "                // javaVersion and javaContainer properties are not allowed for function apps",
-    "                ? slot.runtime =~ 'Java' && kind != 'functionapp'",
-    "                    ? slot.javaContainer =~ 'Tomcat'",
-    "                        ? slot.javaVersion == '1.8' ? 'TOMCAT|${slot.runtimeVersion}-jre8' : 'TOMCAT|${slot.runtimeVersion}-java${slot.javaVersion}'",
-    "                        : slot.javaContainer =~ 'Jboss'",
-    "                            ? 'JBOSSEAP|${slot.runtimeVersion}-java${slot.javaVersion}'",
-    "                            : slot.javaContainer =~ 'Java'",
-    "                                ? slot.javaVersion == '1.8' ? 'JAVA|8-jre8' : 'JAVA|${slot.javaVersion}-java${slot.javaVersion}'",
-    "                                : 'JAVA|${slot.runtimeVersion}'",
-    "                    // When runtime is provided, runtimeVersion is required for all runtimes except Docker and Custom",
-    "                    : slot.runtime =~ 'Sidecar'",
-    "                        ? 'sitecontainers'",
-    "                        : slot.runtime =~ 'Docker'",
-    "                            ? 'DOCKER|${slot.dockerContainerName}'",
-    "                            : !empty(slot.runtime) && slot.runtime != 'Custom' ? '${toUpper(slot.runtime)}|${slot.runtimeVersion}' : null",
-    "                : slot.linuxFxVersion",
+    "        : platform == 'Linux'",
+    "            ? empty(profile.runtimeLabel)",
+    "                // Keep this note beside the nested condition",
+    "                ? profile.runtime =~ 'Java' && kind != 'worker'",
+    "                    ? profile.engineVariant =~ 'ServerA'",
+    "                        ? profile.engineVersion == '1.8' ? 'SERVER_A|${profile.version}-jre8' : 'SERVER_A|${profile.version}-java${profile.engineVersion}'",
+    "                        : profile.engineVariant =~ 'ServerB'",
+    "                            ? 'SERVER_B|${profile.version}-java${profile.engineVersion}'",
+    "                            : profile.engineVariant =~ 'Java'",
+    "                                ? profile.engineVersion == '1.8' ? 'JAVA|8-jre8' : 'JAVA|${profile.engineVersion}-java${profile.engineVersion}'",
+    "                                : 'JAVA|${profile.version}'",
+    "                    // Keep this other note before the alternate condition",
+    "                    : profile.runtime =~ 'Addon'",
+    "                        ? 'auxiliary'",
+    "                        : profile.runtime =~ 'Container'",
+    "                            ? 'CONTAINER|${profile.imageName}'",
+    "                            : !empty(profile.runtime) && profile.runtime != 'Custom' ? '${toUpper(profile.runtime)}|${profile.version}' : null",
+    "                : profile.runtimeLabel",
     "            : null",
     "    }",
     "  }",
@@ -568,34 +566,34 @@ test("deeply nested conditional property keeps two-space indentation", async () 
     "",
   ].join("\n");
   const output = await stable(source, { tabWidth: 2 });
-  assert.match(output, /\n {6}linuxFxVersion:/);
+  assert.match(output, /\n {6}runtimeLabel:/);
   assert.match(output, /\n {8}\? null\n/);
-  assert.match(output, /\n {10}\? empty\(slot\.linuxFxVersion\)/);
-  assert.match(output, /\n {12}\/\/ javaVersion/);
-  assert.match(output, /\n {12}\? slot\.runtime =~ 'Java'/);
-  assert.match(output, /\n {14}\? slot\.javaContainer =~ 'Tomcat'/);
-  assert.match(output, /\n {16}\? slot\.javaVersion == '1\.8'/);
-  assert.match(output, /\n {14}\/\/ When runtime is provided/);
-  assert.match(output, /\n {14}: slot\.runtime =~ 'Sidecar'/);
-  assert.match(output, /\n {12}: slot\.linuxFxVersion/);
+  assert.match(output, /\n {10}\? empty\(profile\.runtimeLabel\)/);
+  assert.match(output, /\n {12}\/\/ Keep this note/);
+  assert.match(output, /\n {12}\? profile\.runtime =~ 'Java'/);
+  assert.match(output, /\n {14}\? profile\.engineVariant =~ 'ServerA'/);
+  assert.match(output, /\n {16}\? profile\.engineVersion == '1\.8'/);
+  assert.match(output, /\n {14}\/\/ Keep this other note/);
+  assert.match(output, /\n {14}: profile\.runtime =~ 'Addon'/);
+  assert.match(output, /\n {12}: profile\.runtimeLabel/);
   assert.match(output, /\n {10}: null\n/);
   const fourSpaces = await stable(source, { tabWidth: 4 });
-  assert.match(fourSpaces, /\n {12}linuxFxVersion:/);
-  assert.match(fourSpaces, /\n {20}\? empty\(slot\.linuxFxVersion\)/);
+  assert.match(fourSpaces, /\n {12}runtimeLabel:/);
+  assert.match(fourSpaces, /\n {20}\? empty\(profile\.runtimeLabel\)/);
   const tabs = await stable(source, { tabWidth: 4, useTabs: true });
-  assert.match(tabs, /\n\t{3}linuxFxVersion:/);
-  assert.match(tabs, /\n\t{5}\? empty\(slot\.linuxFxVersion\)/);
+  assert.match(tabs, /\n\t{3}runtimeLabel:/);
+  assert.match(tabs, /\n\t{5}\? empty\(profile\.runtimeLabel\)/);
 });
 
 test("conditional object branches indent their contents once after the question or colon", async () => {
   const source = [
     "var config = {",
-    "  customDnsSuffixConfiguration: !empty(appServiceEnvironment.customDnsSuffix.dnsSuffix)",
+    "  endpointOptions: !empty(hostOptions.customEndpoint.domain)",
     "    ? {",
-    "        // incorrect API schema",
-    "        dnsSuffix: appServiceEnvironment.customDnsSuffix.dnsSuffix",
-    "        certificateUrl: customDnsSuffixCertificate!.properties.secretUri",
-    "        keyVaultReferenceIdentity: !empty(appServiceEnvironment.customDnsSuffix.identity.name) ? customDnsSuffixIdentity.id : 'systemassigned'",
+    "        // keep this note in place",
+    "        domain: hostOptions.customEndpoint.domain",
+    "        certificateUri: endpointCertificate!.properties.secretUri",
+    "        credentialIdentity: !empty(hostOptions.customEndpoint.identity.name) ? endpointIdentity.id : 'automatic'",
     "      }",
     "    : null",
     "}",
@@ -606,30 +604,30 @@ test("conditional object branches indent their contents once after the question 
     .replace("\n      }\n    : null", "\n    }\n    : null");
   assert.equal(await stable(source, { tabWidth: 2 }), expected);
   const fourSpaces = await stable(source, { tabWidth: 4 });
-  assert.match(fourSpaces, /\n {8}\? \{\n {12}\/\/ incorrect API schema/);
-  assert.match(fourSpaces, /\n {12}dnsSuffix:/);
+  assert.match(fourSpaces, /\n {8}\? \{\n {12}\/\/ keep this note in place/);
+  assert.match(fourSpaces, /\n {12}domain:/);
   assert.match(fourSpaces, /\n {8}\}\n {8}: null/);
   const tabs = await stable(source, { tabWidth: 4, useTabs: true });
-  assert.match(tabs, /\n\t{2}\? \{\n\t{3}\/\/ incorrect API schema/);
+  assert.match(tabs, /\n\t{2}\? \{\n\t{3}\/\/ keep this note in place/);
   assert.match(tabs, /\n\t{2}\}\n\t{2}: null/);
 });
 
 test("fitting ternary object properties collapse to tight inline branches", async () => {
   const source = [
     "var config = {",
-    "  apiManagementConfig: !empty(slotSettings.apiManagementService.name) ? {",
-    "    id: apiManagementServiceApi.id",
+    "  gatewayOptions: !empty(profileOptions.gateway.name) ? {",
+    "    id: gatewayResource.id",
     "  } : null",
-    "  apiDefinition: !empty(slotSettings.apiDefinition) ? {",
-    "    url: slotSettings.apiDefinition",
+    "  spec: !empty(profileOptions.spec) ? {",
+    "    url: profileOptions.spec",
     "  } : null",
     "}",
     "",
   ].join("\n");
   const expected = [
     "var config = {",
-    "  apiManagementConfig: !empty(slotSettings.apiManagementService.name) ? {id: apiManagementServiceApi.id} : null",
-    "  apiDefinition: !empty(slotSettings.apiDefinition) ? {url: slotSettings.apiDefinition} : null",
+    "  gatewayOptions: !empty(profileOptions.gateway.name) ? {id: gatewayResource.id} : null",
+    "  spec: !empty(profileOptions.spec) ? {url: profileOptions.spec} : null",
     "}",
     "",
   ].join("\n");
@@ -639,11 +637,11 @@ test("fitting ternary object properties collapse to tight inline branches", asyn
   const narrow = await stable(source, { printWidth: longest - 1 });
   assert.match(
     narrow,
-    /apiManagementConfig: !empty\(slotSettings\.apiManagementService\.name\)\n/,
+    /gatewayOptions: !empty\(profileOptions\.gateway\.name\)\n/,
   );
   assert.match(
     narrow,
-    /apiDefinition: !empty\(slotSettings\.apiDefinition\) \? \{url: slotSettings\.apiDefinition\} : null/,
+    /spec: !empty\(profileOptions\.spec\) \? \{url: profileOptions\.spec\} : null/,
   );
   assert.match(
     await stable(source, { bicepObjectLayout: "preserve" }),
@@ -655,14 +653,14 @@ test("fitting ternary object properties collapse to tight inline branches", asyn
   );
   assert.match(
     await stable(comment),
-    /apiManagementConfig:[^\n]*\n    \? \{\n      \/\/ retain branch comment/,
+    /gatewayOptions:[^\n]*\n    \? \{\n      \/\/ retain branch comment/,
   );
   const multiline = source.replace(
-    "apiManagementServiceApi.id",
+    "gatewayResource.id",
     "'''\n  keep indentation\n'''",
   );
   const kept = await stable(multiline);
-  assert.match(kept, /apiManagementConfig: !empty\([^\n]*\)\n/);
+  assert.match(kept, /gatewayOptions: !empty\([^\n]*\)\n/);
   assert.ok(kept.includes("'''\n  keep indentation\n'''"));
   const nested = await stable(
     "var result={value: enabled ? {inner: flag ? {name:'a'} : null} : null}\n",
@@ -721,34 +719,34 @@ test("nested and parenthesized ternary objects preserve comments and literal ind
 
 test("ternaries nested in multiline calls retain one indent per branch", async () => {
   const source = [
-    "param slot object",
+    "param profile object",
     "param kind string",
-    "param operatingSystem string",
-    "param mountedAzureStorageAccounts array",
+    "param platform string",
+    "param attachedVolumes array",
     "var config = {",
-    "  azureStorageAccounts: (slot.runtime =~ 'Docker' || operatingSystem == 'Linux') && !empty(slot.mountedAzureStorageAccounts) && kind != 'functionapp,workflowapp'",
+    "  volumeMappings: (profile.runtime =~ 'Container' || platform == 'Linux') && !empty(profile.attachedVolumes) && kind != 'worker,service'",
     "    ? union({",
-    "      '${slot.mountedAzureStorageAccounts[0].name}': {",
-    "        shareName: slot.mountedAzureStorageAccounts[0].type =~ 'AzureFiles'",
-    "          ? slot.mountedAzureStorageAccounts[0].storageAccount.shareName",
-    "          : slot.mountedAzureStorageAccounts[0].type =~ 'AzureBlob'",
-    "          ? slot.mountedAzureStorageAccounts[0].storageAccount.containerName",
+    "      '${profile.attachedVolumes[0].name}': {",
+    "        share: profile.attachedVolumes[0].type =~ 'SharedDisk'",
+    "          ? profile.attachedVolumes[0].volume.share",
+    "          : profile.attachedVolumes[0].type =~ 'ObjectDisk'",
+    "          ? profile.attachedVolumes[0].volume.container",
     "          : ''",
     "      }",
-    "    }, length(slot.mountedAzureStorageAccounts) > 1 ? {",
-    "      '${slot.mountedAzureStorageAccounts[1].name}': {",
-    "        shareName: slot.mountedAzureStorageAccounts[1].type =~ 'AzureFiles'",
-    "          ? slot.mountedAzureStorageAccounts[1].storageAccount.shareName",
-    "          : slot.mountedAzureStorageAccounts[1].type =~ 'AzureBlob'",
-    "          ? slot.mountedAzureStorageAccounts[1].storageAccount.containerName",
+    "    }, length(profile.attachedVolumes) > 1 ? {",
+    "      '${profile.attachedVolumes[1].name}': {",
+    "        share: profile.attachedVolumes[1].type =~ 'SharedDisk'",
+    "          ? profile.attachedVolumes[1].volume.share",
+    "          : profile.attachedVolumes[1].type =~ 'ObjectDisk'",
+    "          ? profile.attachedVolumes[1].volume.container",
     "          : ''",
     "      }",
-    "    } : {}, length(slot.mountedAzureStorageAccounts) > 2 ? {",
-    "      '${slot.mountedAzureStorageAccounts[2].name}': {",
-    "        shareName: slot.mountedAzureStorageAccounts[2].type =~ 'AzureFiles'",
-    "          ? slot.mountedAzureStorageAccounts[2].storageAccount.shareName",
-    "          : slot.mountedAzureStorageAccounts[2].type =~ 'AzureBlob'",
-    "          ? slot.mountedAzureStorageAccounts[2].storageAccount.containerName",
+    "    } : {}, length(profile.attachedVolumes) > 2 ? {",
+    "      '${profile.attachedVolumes[2].name}': {",
+    "        share: profile.attachedVolumes[2].type =~ 'SharedDisk'",
+    "          ? profile.attachedVolumes[2].volume.share",
+    "          : profile.attachedVolumes[2].type =~ 'ObjectDisk'",
+    "          ? profile.attachedVolumes[2].volume.container",
     "          : ''",
     "      }",
     "    } : {})",
@@ -757,20 +755,20 @@ test("ternaries nested in multiline calls retain one indent per branch", async (
     "",
   ].join("\n");
   const output = await stable(source);
-  assert.match(output, / {2}azureStorageAccounts:/);
+  assert.match(output, / {2}volumeMappings:/);
   assert.match(output, /\n {4}\? union\(\n/);
   for (const index of [0, 1, 2]) {
     const depth = index === 0 ? 10 : 12;
     assert.match(
       output,
       new RegExp(
-        `\\n {${depth}}shareName: slot\\.mountedAzureStorageAccounts\\[${index}\\]\\.type =~ 'AzureFiles'\\n {${depth + 2}}\\? slot\\.mountedAzureStorageAccounts\\[${index}\\]`,
+        `\\n {${depth}}share: profile\\.attachedVolumes\\[${index}\\]\\.type =~ 'SharedDisk'\\n {${depth + 2}}\\? profile\\.attachedVolumes\\[${index}\\]`,
       ),
     );
   }
   assert.match(
     output,
-    /\n {6}length\(slot\.mountedAzureStorageAccounts\) > 1\n {8}\? \{/,
+    /\n {6}length\(profile\.attachedVolumes\) > 1\n {8}\? \{/,
   );
   assert.match(output, /\n {8}: \{\},\n/);
   const four = await stable(source, { tabWidth: 4 });
@@ -779,29 +777,27 @@ test("ternaries nested in multiline calls retain one indent per branch", async (
   assert.match(tabs, /\n\t{2}\? union\(\n/);
 });
 
-test("all nested storage-account branches keep ternaries and sibling properties aligned", async () => {
+test("all nested volume branches keep ternaries and sibling properties aligned", async () => {
   const account = (index) =>
     [
-      index === 0
-        ? "{"
-        : `length(slot.mountedAzureStorageAccounts) > ${index} ? {`,
-      `  '\${slot.mountedAzureStorageAccounts[${index}].name}': {`,
-      `    type: slot.mountedAzureStorageAccounts[${index}].type`,
-      `    shareName: slot.mountedAzureStorageAccounts[${index}].type =~ 'AzureFiles'`,
-      `      ? slot.mountedAzureStorageAccounts[${index}].storageAccount.shareName`,
-      `      : slot.mountedAzureStorageAccounts[${index}].type =~ 'AzureBlob'`,
-      `      ? slot.mountedAzureStorageAccounts[${index}].storageAccount.containerName`,
+      index === 0 ? "{" : `length(profile.attachedVolumes) > ${index} ? {`,
+      `  '\${profile.attachedVolumes[${index}].name}': {`,
+      `    type: profile.attachedVolumes[${index}].type`,
+      `    share: profile.attachedVolumes[${index}].type =~ 'SharedDisk'`,
+      `      ? profile.attachedVolumes[${index}].volume.share`,
+      `      : profile.attachedVolumes[${index}].type =~ 'ObjectDisk'`,
+      `      ? profile.attachedVolumes[${index}].volume.container`,
       "      : ''",
-      `    mountPath: slot.mountedAzureStorageAccounts[${index}].mountPath`,
+      `    path: profile.attachedVolumes[${index}].path`,
       "  }",
       index === 0 ? "}" : "} : {}",
     ].join("\n");
   const source =
-    "param slot object\n" +
+    "param profile object\n" +
     "param kind string\n" +
-    "param operatingSystem string\n" +
+    "param platform string\n" +
     "var config = {\n" +
-    "  azureStorageAccounts: (slot.runtime =~ 'Docker' || operatingSystem == 'Linux') && !empty(slot.mountedAzureStorageAccounts) && kind != 'functionapp,workflowapp'\n" +
+    "  volumeMappings: (profile.runtime =~ 'Container' || platform == 'Linux') && !empty(profile.attachedVolumes) && kind != 'worker,service'\n" +
     `    ? union(${Array.from({ length: 5 }, (_, index) => account(index)).join(", ")})\n` +
     "    : {}\n" +
     "}\n";
@@ -811,13 +807,13 @@ test("all nested storage-account branches keep ternaries and sibling properties 
     assert.match(
       output,
       new RegExp(
-        `\\n {${depth}}shareName: slot\\.mountedAzureStorageAccounts\\[${index}\\]\\.type =~ 'AzureFiles'\\n {${depth + 2}}\\? slot\\.mountedAzureStorageAccounts\\[${index}\\]`,
+        `\\n {${depth}}share: profile\\.attachedVolumes\\[${index}\\]\\.type =~ 'SharedDisk'\\n {${depth + 2}}\\? profile\\.attachedVolumes\\[${index}\\]`,
       ),
     );
     assert.match(
       output,
       new RegExp(
-        `\\n {${depth}}mountPath: slot\\.mountedAzureStorageAccounts\\[${index}\\]\\.mountPath`,
+        `\\n {${depth}}path: profile\\.attachedVolumes\\[${index}\\]\\.path`,
       ),
     );
   }
@@ -826,32 +822,29 @@ test("all nested storage-account branches keep ternaries and sibling properties 
 test("multiline ternaries in array comprehensions indent branches past the loop body", async () => {
   const source = [
     "var config = {",
-    "  allowedClientApplications: [",
-    "    for (allowedApplication, i) in union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications: union(",
-    "        defaultIdentityProviders,",
-    "        authenticationSettings.identityProviders",
-    "      ).microsoftEntraId.referenceType == 'UniqueNames'",
-    "      ? entraJwtAllowedApplications[i]!.appId",
-    "      : allowedApplication",
+    "  eligibleEntryIdentifiers: [",
+    "    for (record, i) in union(referenceCatalog, requestConfiguration.sources).directory.validation.rules.eligibleEntryIdentifiers: union(",
+    "        referenceCatalog,",
+    "        requestConfiguration.sources",
+    "      ).directory.keyStyle == 'Aliases'",
+    "      ? knownRecords[i]!.id",
+    "      : record",
     "  ]",
     "}",
     "",
   ].join("\n");
   const expected = source
-    .replace(
-      "\n      ? entraJwtAllowedApplications",
-      "\n        ? entraJwtAllowedApplications",
-    )
-    .replace("\n      : allowedApplication", "\n        : allowedApplication");
+    .replace("\n      ? knownRecords", "\n        ? knownRecords")
+    .replace("\n      : record", "\n        : record");
   assert.equal(await stable(source, { tabWidth: 2 }), expected);
   const fourSpaces = await stable(source, { tabWidth: 4 });
-  assert.match(fourSpaces, /\n {8}for \(allowedApplication, i\)/);
-  assert.match(fourSpaces, /\n {16}\? entraJwtAllowedApplications/);
-  assert.match(fourSpaces, /\n {16}: allowedApplication/);
+  assert.match(fourSpaces, /\n {8}for \(record, i\)/);
+  assert.match(fourSpaces, /\n {16}\? knownRecords/);
+  assert.match(fourSpaces, /\n {16}: record/);
   const tabs = await stable(source, { tabWidth: 4, useTabs: true });
-  assert.match(tabs, /\n\t{2}for \(allowedApplication, i\)/);
-  assert.match(tabs, /\n\t{4}\? entraJwtAllowedApplications/);
-  assert.match(tabs, /\n\t{4}: allowedApplication/);
+  assert.match(tabs, /\n\t{2}for \(record, i\)/);
+  assert.match(tabs, /\n\t{4}\? knownRecords/);
+  assert.match(tabs, /\n\t{4}: record/);
 });
 
 test("loop ternary indentation leaves unrelated ternaries and ignored declarations alone", async () => {
@@ -879,41 +872,39 @@ test("loop ternary indentation leaves unrelated ternaries and ignored declaratio
   assert.equal(await stable(ignored, { printWidth: 60 }), ignored);
 });
 
-const resourceGroupLoopHeader =
-  "resource resourceGroupsRes 'Microsoft.Resources/resourceGroups@2025-04-01' = [for resourceGroup in resourceGroups: if (union(defaultResourceGroup, resourceGroup).create) {";
-const resourceGroupLoop =
-  "targetScope='subscription'\nparam resourceGroups array=[]\nparam tags object={}\nvar defaultResourceGroup={create:true,tags:{}}\n" +
-  resourceGroupLoopHeader +
-  "\nname:resourceGroup.name\nlocation:resourceGroup.location\ntags:union(tags,union(defaultResourceGroup,resourceGroup).tags)\nproperties:{}\n}]\n";
+const groupLoopHeader =
+  "resource groupResources 'Microsoft.Resources/groups@2025-04-01' = [for group in groups: if (union(baseGroup, group).create) {";
+const groupLoop =
+  "targetScope='subscription'\nparam groups array=[]\nparam tags object={}\nvar baseGroup={create:true,tags:{}}\n" +
+  groupLoopHeader +
+  "\nname:group.name\nlocation:group.location\ntags:union(tags,union(baseGroup,group).tags)\nproperties:{}\n}]\n";
 
 test("conditional resource loop header fits on one line with a single body indent", async () => {
-  assert.ok(resourceGroupLoopHeader.length <= 180);
-  const output = await stable(resourceGroupLoop, { printWidth: 180 });
-  assert.ok(
-    output.includes(resourceGroupLoopHeader + "\n  name: resourceGroup.name\n"),
-  );
+  assert.ok(groupLoopHeader.length <= 180);
+  const output = await stable(groupLoop, { printWidth: 180 });
+  assert.ok(output.includes(groupLoopHeader + "\n  name: group.name\n"));
   assert.ok(output.endsWith("  properties: {}\n}]\n"));
 });
 
 test("conditional loop headers stay inline beyond width unless if-call wrapping is requested", async () => {
   const source =
-    "resource entraJwtAllowedApplications 'Microsoft.Graph/applications@v1.0' existing = [\n" +
-    "  for allowedApplication in (union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications): if (union(\n" +
-    "    defaultIdentityProviders,\n" +
-    "    authenticationSettings.identityProviders\n" +
-    "  ).microsoftEntraId.referenceType == 'UniqueNames') {\n" +
-    "    uniqueName: allowedApplication\n" +
+    "resource knownRecords 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = [\n" +
+    "  for record in (union(referenceCatalog, requestConfiguration.sources).directory.validation.rules.eligibleEntryIdentifiers): if (union(\n" +
+    "    referenceCatalog,\n" +
+    "    requestConfiguration.sources\n" +
+    "  ).directory.keyStyle == 'Aliases') {\n" +
+    "    alias: record\n" +
     "  }\n" +
     "]\n";
   const inline = await stable(source);
   const header =
-    "resource entraJwtAllowedApplications 'Microsoft.Graph/applications@v1.0' existing = [for allowedApplication in (union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.validation.jwtClaimChecks.allowedClientApplications) : if (union(defaultIdentityProviders, authenticationSettings.identityProviders).microsoftEntraId.referenceType == 'UniqueNames') {";
+    "resource knownRecords 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = [for record in (union(referenceCatalog, requestConfiguration.sources).directory.validation.rules.eligibleEntryIdentifiers) : if (union(referenceCatalog, requestConfiguration.sources).directory.keyStyle == 'Aliases') {";
   assert.ok(header.length > 180);
-  assert.ok(inline.includes(header + "\n  uniqueName: allowedApplication\n}]"));
+  assert.ok(inline.includes(header + "\n  alias: record\n}]"));
   assert.doesNotMatch(inline, /if \(union\(\s*\n/);
   const wrapped = await stable(source, { bicepIfConditionLayout: "wrap" });
-  assert.match(wrapped, / = \[\n  for allowedApplication/);
-  assert.match(wrapped, /if \(union\(\n\s+defaultIdentityProviders,/);
+  assert.match(wrapped, / = \[\n  for record/);
+  assert.match(wrapped, /if \(union\(\n\s+referenceCatalog,/);
   assert.ok(
     (
       await stable(source, {
@@ -927,21 +918,21 @@ test("conditional loop headers stay inline beyond width unless if-call wrapping 
       bicepIfConditionLayout: "wrap",
       printWidth: header.length - 1,
     }),
-    / = \[\n  for allowedApplication/,
+    / = \[\n  for record/,
   );
   const expanded = await stable(source, { bicepLoopLayout: "expanded" });
-  assert.match(expanded, / = \[\n  for allowedApplication/);
+  assert.match(expanded, / = \[\n  for record/);
   assert.match(
     expanded,
-    /if \(union\(defaultIdentityProviders, authenticationSettings\.identityProviders\)/,
+    /if \(union\(referenceCatalog, requestConfiguration\.sources\)/,
   );
   const commented = source.replace(
-    "    authenticationSettings.identityProviders\n  ).microsoftEntraId.referenceType",
-    "    /* preserve comment */ authenticationSettings.identityProviders\n  ).microsoftEntraId.referenceType",
+    "    requestConfiguration.sources\n  ).directory.keyStyle",
+    "    /* preserve comment */ requestConfiguration.sources\n  ).directory.keyStyle",
   );
   const safe = await stable(commented);
   assert.match(safe, /\/\* preserve comment \*\//);
-  assert.match(safe, / = \[\n  for allowedApplication/);
+  assert.match(safe, / = \[\n  for record/);
 });
 
 test("direct if conditions keep calls inline unless wrapping is requested", async () => {
@@ -958,11 +949,11 @@ test("direct if conditions keep calls inline unless wrapping is requested", asyn
 
 test("long direct if conditions move intact below the resource declaration", async () => {
   const source =
-    "resource transparentDataEncryption 'Microsoft.Sql/servers/databases/transparentDataEncryption@2025-02-01-preview' = if (!empty(database.geoReplicationFromPrimaryDatabase.sqlServerName) || database.status =~ 'failover' || database.status =~ 'readable' ? false : database.dataEncryption !~ 'NotConfigured') {\n" +
+    "resource conditionalIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (!empty(recordConfig.replica.sourceName) || recordConfig.status =~ 'paused' || recordConfig.status =~ 'active' ? false : recordConfig.protectionMode !~ 'Disabled') {\n" +
     "  name: 'current'\n" +
-    "  parent: sqlDatabaseRes\n" +
+    "  parent: parentIdentity\n" +
     "  properties: {\n" +
-    "    state: database.dataEncryption\n" +
+    "    state: recordConfig.protectionMode\n" +
     "  }\n" +
     "}\n";
   const expected = source.replace(" = if (", " =\n  if (");
@@ -972,28 +963,28 @@ test("long direct if conditions move intact below the resource declaration", asy
   assert.equal(await stable(source, { printWidth: headerWidth - 1 }), expected);
   assert.match(
     await stable(source, { bicepConditionalHeader: "inline" }),
-    /readable'\n  \? false/,
+    /active'\n  \? false/,
   );
   assert.match(
     await stable(source, { bicepConditionalHeader: "auto" }),
-    /readable'\n  \? false/,
+    /active'\n  \? false/,
   );
   const module = source
     .replace(
-      "resource transparentDataEncryption 'Microsoft.Sql/servers/databases/transparentDataEncryption@2025-02-01-preview'",
-      "module transparentDataEncryption './database.bicep'",
+      "resource conditionalIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'",
+      "module conditionalIdentity './recordConfig.bicep'",
     )
     .replace(
-      "  parent: sqlDatabaseRes\n  properties: {\n    state: database.dataEncryption\n  }",
-      "  params: {\n    state: database.dataEncryption\n  }",
+      "  parent: parentIdentity\n  properties: {\n    state: recordConfig.protectionMode\n  }",
+      "  params: {\n    state: recordConfig.protectionMode\n  }",
     );
   assert.match(
     await stable(module, { printWidth: 85 }),
     / =\n  if \([^\n]*\? false : [^\n]*\) \{\n  name:/,
   );
   const commented = source.replace(
-    "database.status =~ 'readable'",
-    "database.status =~ /* keep */ 'readable'",
+    "recordConfig.status =~ 'active'",
+    "recordConfig.status =~ /* keep */ 'active'",
   );
   assert.match(await stable(commented), /\/\* keep \*\//);
   assert.equal(
@@ -1005,7 +996,7 @@ test("long direct if conditions move intact below the resource declaration", asy
     / =\n\tif \([^\n]*\? false : [^\n]*\) \{\n\tname:/,
   );
   const preserved = source.replace(
-    "database.status =~ 'readable'",
+    "recordConfig.status =~ 'active'",
     "empty({\n    flag: true\n  })",
   );
   assert.match(
@@ -1015,20 +1006,20 @@ test("long direct if conditions move intact below the resource declaration", asy
 });
 
 test("object loop wrapping changes at the exact header width", async () => {
-  const fits = await stable(resourceGroupLoop, {
-    printWidth: resourceGroupLoopHeader.length,
+  const fits = await stable(groupLoop, {
+    printWidth: groupLoopHeader.length,
   });
-  assert.ok(fits.includes(resourceGroupLoopHeader));
-  const wraps = await stable(resourceGroupLoop, {
-    printWidth: resourceGroupLoopHeader.length - 1,
+  assert.ok(fits.includes(groupLoopHeader));
+  const wraps = await stable(groupLoop, {
+    printWidth: groupLoopHeader.length - 1,
     bicepIfConditionLayout: "wrap",
   });
-  assert.match(wraps, / = \[\n  for resourceGroup/);
-  const inline = await stable(resourceGroupLoop, {
-    printWidth: resourceGroupLoopHeader.length - 1,
+  assert.match(wraps, / = \[\n  for group/);
+  const inline = await stable(groupLoop, {
+    printWidth: groupLoopHeader.length - 1,
   });
-  assert.ok(inline.includes(resourceGroupLoopHeader));
-  assert.match(wraps, /\n    name: resourceGroup\.name\n/);
+  assert.ok(inline.includes(groupLoopHeader));
+  assert.match(wraps, /\n    name: group\.name\n/);
 });
 
 test("module loops use compact headers and close brackets together", async () => {
@@ -1044,11 +1035,11 @@ test("module loops use compact headers and close brackets together", async () =>
 
 test("fitting call-expression loops collapse their object argument and array brackets", async () => {
   const source =
-    "output apiApps array = [for (apiApp, i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, {\n" +
-    "  slots: apiAppsRes[i].outputs.slots\n" +
+    "output widgets array = [for (widget, i) in widgets: union(widgetResults[i].outputs.metadata, {\n" +
+    "  entries: widgetResults[i].outputs.entries\n" +
     "})]\n";
   const compact =
-    "output apiApps array = [for (apiApp, i) in apiApps: union(apiAppsRes[i].outputs.siteProperties, {slots: apiAppsRes[i].outputs.slots})]\n";
+    "output widgets array = [for (widget, i) in widgets: union(widgetResults[i].outputs.metadata, {entries: widgetResults[i].outputs.entries})]\n";
   assert.equal(await stable(source), compact);
   assert.equal(
     await stable(
@@ -1072,24 +1063,24 @@ test("fitting call-expression loops collapse their object argument and array bra
   assert.equal(
     await stable(
       source
-        .replaceAll("apiApps", "logicAppsStandard")
-        .replaceAll("apiApp", "logicApp")
+        .replaceAll("widgets", "batches")
+        .replaceAll("widget", "batch")
         .replace(
-          "logicAppsStandardRes[i].outputs.slots",
-          "logicAppsStandardRes[0].outputs.slots",
+          "batchResults[i].outputs.entries",
+          "batchResults[0].outputs.entries",
         ),
     ),
     compact
-      .replaceAll("apiApps", "logicAppsStandard")
-      .replaceAll("apiApp", "logicApp")
+      .replaceAll("widgets", "batches")
+      .replaceAll("widget", "batch")
       .replace(
-        "logicAppsStandardRes[i].outputs.slots",
-        "logicAppsStandardRes[0].outputs.slots",
+        "batchResults[i].outputs.entries",
+        "batchResults[0].outputs.entries",
       ),
   );
   assert.match(
     await stable(source, { printWidth: compact.trimEnd().length - 1 }),
-    / = \[\n  for \(apiApp, i\)/,
+    / = \[\n  for \(widget, i\)/,
   );
   assert.equal(
     await stable(source, { printWidth: compact.trimEnd().length }),
@@ -1101,15 +1092,17 @@ test("fitting call-expression loops collapse their object argument and array bra
   );
   assert.match(
     await stable(source, { bicepLoopLayout: "expanded" }),
-    / = \[\n  for \(apiApp, i\)/,
+    / = \[\n  for \(widget, i\)/,
   );
   assert.match(
     await stable(source, { bicepObjectLayout: "preserve" }),
-    /union\(apiAppsRes\[i\]\.outputs\.siteProperties, \{\n/,
+    /union\(widgetResults\[i\]\.outputs\.metadata, \{\n/,
   );
   assert.equal(
     await stable(
-      compact.replace("{slots:", "{ slots:").replace(".slots})]", ".slots })]"),
+      compact
+        .replace("{entries:", "{ entries:")
+        .replace(".entries})]", ".entries })]"),
       {
         bicepObjectLayout: "preserve",
         bicepLoopLayout: "preserve",
@@ -1118,50 +1111,56 @@ test("fitting call-expression loops collapse their object argument and array bra
     compact,
   );
   const commented = source.replace(
-    "  slots:",
-    "  // keep attached to slots\n  slots:",
+    "  entries:",
+    "  // keep attached to entries\n  entries:",
   );
-  assert.match(await stable(commented), / = \[\n  for \(apiApp, i\)/);
+  assert.match(await stable(commented), / = \[\n  for \(widget, i\)/);
   assert.equal(
     await stable("// prettier-ignore\n" + source),
     "// prettier-ignore\n" + source,
   );
   const multilineLiteral = source
     .replace(
-      "apiAppsRes[i].outputs.slots",
+      "widgetResults[i].outputs.entries",
       "'''\\n    keep indentation\\n  '''",
     )
     .replaceAll("\\n", "\n");
-  assert.match(await stable(multilineLiteral), / = \[\n  for \(apiApp, i\)/);
+  assert.match(await stable(multilineLiteral), / = \[\n  for \(widget, i\)/);
 });
 
 test("fitting property-value calls collapse object arguments without brace padding", async () => {
   const source =
     "output plan object = {\n" +
-    "  isHyperV: union({ hyperV : false }, webAppServicePlans[i].properties).hyperV\n" +
+    "  usesAcceleration: union({ accelerated : false }, computeProfiles[i].properties).accelerated\n" +
     "}\n";
   const compact =
     "output plan object = {\n" +
-    "  isHyperV: union({hyperV: false}, webAppServicePlans[i].properties).hyperV\n" +
+    "  usesAcceleration: union({accelerated: false}, computeProfiles[i].properties).accelerated\n" +
     "}\n";
   assert.equal(await stable(source), compact);
   const line = compact.split("\n")[1];
   assert.equal(await stable(source, { printWidth: line.length }), compact);
   assert.match(
     await stable(source, { printWidth: line.length - 1 }),
-    /isHyperV: union\(\n/,
+    /usesAcceleration: union\(\n/,
   );
   assert.equal(await stable(source, { bicepObjectLayout: "auto" }), compact);
   assert.match(
     await stable(
-      source.replace("{ hyperV : false }", "{\n    hyperV: false\n  }"),
+      source.replace(
+        "{ accelerated : false }",
+        "{\n    accelerated: false\n  }",
+      ),
       { bicepObjectLayout: "preserve" },
     ),
-    /isHyperV: union\(\n/,
+    /usesAcceleration: union\(\n/,
   );
   assert.match(
     await stable(
-      source.replace("hyperV : false", "hyperV: /* keep comment */ false"),
+      source.replace(
+        "accelerated : false",
+        "accelerated: /* keep comment */ false",
+      ),
     ),
     /\/\* keep comment \*\//,
   );
@@ -1173,17 +1172,14 @@ test("fitting property-value calls collapse object arguments without brace paddi
 
 test("logical conditions keep nested function calls inline unless wrapping is requested", async () => {
   const input =
-    "param resourceGroups array=[]\nparam defaultResourceGroup object={}\n" +
-    "module sites 'modules/sites.bicep' = [for (resourceGroup, i) in resourceGroups: if (!empty(union(defaultResourceGroup, resourceGroup).webApps) || !empty(union(defaultResourceGroup, resourceGroup).functionApps) || !empty(union(defaultResourceGroup, resourceGroup).logicAppsStandard) || !empty(union(defaultResourceGroup, resourceGroup).apiApps)) {\n" +
-    "name:'sites-${i}'\nparams:{}\n}]\n";
+    "param groups array=[]\nparam baseGroup object={}\n" +
+    "module services 'modules/services.bicep' = [for (group, i) in groups: if (!empty(union(baseGroup, group).frontends) || !empty(union(baseGroup, group).processors) || !empty(union(baseGroup, group).batches) || !empty(union(baseGroup, group).widgets)) {\n" +
+    "name:'services-${i}'\nparams:{}\n}]\n";
   const inline = await stable(input);
-  assert.match(
-    inline,
-    /!empty\(union\(defaultResourceGroup, resourceGroup\)\.logicAppsStandard\)/,
-  );
+  assert.match(inline, /!empty\(union\(baseGroup, group\)\.batches\)/);
   assert.doesNotMatch(inline, /union\(\s*\n/);
   const wrapped = await stable(input, { bicepLogicalCallLayout: "wrap" });
-  assert.match(wrapped, /union\(\s*\n\s*defaultResourceGroup,/);
+  assert.match(wrapped, /union\(\s*\n\s*baseGroup,/);
   const conjunction = input.replaceAll(" || ", " && ");
   assert.doesNotMatch(await stable(conjunction), /union\(\s*\n/);
   assert.match(
@@ -1191,101 +1187,101 @@ test("logical conditions keep nested function calls inline unless wrapping is re
     /union\(\s*\n/,
   );
   const commented = input.replace(
-    "union(defaultResourceGroup, resourceGroup).logicAppsStandard",
-    "union(defaultResourceGroup, /* retain */ resourceGroup).logicAppsStandard",
+    "union(baseGroup, group).batches",
+    "union(baseGroup, /* retain */ group).batches",
   );
   assert.match(await stable(commented), /\/\* retain \*\//);
   assert.doesNotMatch(
     await stable(
-      "output value object = { result: union(defaultResourceGroup, resourceGroup) }\n",
+      "output value object = { result: union(baseGroup, group) }\n",
       {
         printWidth: 30,
       },
     ),
-    /result: union\(defaultResourceGroup, resourceGroup\)/,
+    /result: union\(baseGroup, group\)/,
   );
 });
 
 test("logical ternary conditions keep calls inline by default", async () => {
   const source =
     "var config = {\n" +
-    "  licenseType: database.sku.name =~ 'ElasticPool' || startsWith(database.sku.name, 'S') || startsWith(database.sku.name, 'P') || startsWith(database.sku.name, 'Basic') || contains(database.sku.name, '_S_')\n" +
+    "  pricingTier: recordConfig.sku.name =~ 'Shared' || startsWith(recordConfig.sku.name, 'S') || startsWith(recordConfig.sku.name, 'P') || startsWith(recordConfig.sku.name, 'Starter') || contains(recordConfig.sku.name, '_T_')\n" +
     "    ? null\n" +
-    "    : database.hybridBenefit ? 'BasePrice' : 'LicenseIncluded'\n" +
+    "    : recordConfig.discountAvailable ? 'Discounted' : 'Regular'\n" +
     "}\n";
   assert.equal(await stable(source), source);
   assert.match(
     await stable(source, { bicepLogicalCallLayout: "wrap" }),
-    /contains\(\n\s+database\.sku\.name,/,
+    /contains\(\n\s+recordConfig\.sku\.name,/,
   );
   assert.match(
     await stable(source, { bicepLogicalCallLayout: "preserve" }),
-    /contains\(database\.sku\.name, '_S_'\)/,
+    /contains\(recordConfig\.sku\.name, '_T_'\)/,
   );
   const broken = source.replace(
-    "contains(database.sku.name, '_S_')",
-    "contains(\n      database.sku.name,\n      '_S_'\n    )",
+    "contains(recordConfig.sku.name, '_T_')",
+    "contains(\n      recordConfig.sku.name,\n      '_T_'\n    )",
   );
   assert.match(
     await stable(broken, {
       bicepLogicalCallLayout: "preserve",
       printWidth: 220,
     }),
-    /contains\(\n\s+database\.sku\.name,/,
+    /contains\(\n\s+recordConfig\.sku\.name,/,
   );
   const commented = source.replace(
-    "contains(database.sku.name, '_S_')",
-    "contains(database.sku.name, /* keep */ '_S_')",
+    "contains(recordConfig.sku.name, '_T_')",
+    "contains(recordConfig.sku.name, /* keep */ '_T_')",
   );
   assert.match(await stable(commented), /\/\* keep \*\//);
   assert.match(
     await stable(source, { tabWidth: 4, useTabs: true }),
-    /contains\(database\.sku\.name, '_S_'\)/,
+    /contains\(recordConfig\.sku\.name, '_T_'\)/,
   );
 });
 
 test("calls under logical operators use the same layout outside condition headers", async () => {
   const source =
-    "var enabled = startsWith(database.sku.name, 'Basic') || contains(database.sku.name, '_S_')\n";
+    "var enabled = startsWith(recordConfig.sku.name, 'Starter') || contains(recordConfig.sku.name, '_T_')\n";
   const width = { printWidth: 40 };
   const inline = await stable(source, width);
-  assert.match(inline, /startsWith\(database\.sku\.name, 'Basic'\)/);
-  assert.match(inline, /contains\(database\.sku\.name, '_S_'\)/);
+  assert.match(inline, /startsWith\(recordConfig\.sku\.name, 'Starter'\)/);
+  assert.match(inline, /contains\(recordConfig\.sku\.name, '_T_'\)/);
   const wrapped = await stable(source, {
     ...width,
     bicepLogicalCallLayout: "wrap",
   });
   assert.match(wrapped, /startsWith\(\n/);
   const authored = source.replace(
-    "contains(database.sku.name, '_S_')",
-    "contains(\n  database.sku.name,\n  '_S_'\n)",
+    "contains(recordConfig.sku.name, '_T_')",
+    "contains(\n  recordConfig.sku.name,\n  '_T_'\n)",
   );
   assert.match(
     await stable(authored, {
       printWidth: 220,
       bicepLogicalCallLayout: "preserve",
     }),
-    /contains\(\n\s+database\.sku\.name,/,
+    /contains\(\n\s+recordConfig\.sku\.name,/,
   );
   assert.match(
     await stable(source, {
       ...width,
       bicepLogicalCallLayout: "preserve",
     }),
-    /contains\(database\.sku\.name, '_S_'\)/,
+    /contains\(recordConfig\.sku\.name, '_T_'\)/,
   );
   const conjunction = source.replace(" || ", " && ");
   assert.match(
     await stable(conjunction, width),
-    /contains\(database\.sku\.name, '_S_'\)/,
+    /contains\(recordConfig\.sku\.name, '_T_'\)/,
   );
   const nested = source.replace(
-    "startsWith(database.sku.name, 'Basic')",
-    "empty(union(database.sku.name, other.name))",
+    "startsWith(recordConfig.sku.name, 'Starter')",
+    "empty(union(recordConfig.sku.name, other.name))",
   );
   assert.match(
     await stable(nested, width),
-    /union\(database\.sku\.name, other\.name\)/,
+    /union\(recordConfig\.sku\.name, other\.name\)/,
   );
   assert.match(
     await stable(
@@ -1294,24 +1290,24 @@ test("calls under logical operators use the same layout outside condition header
         .replace(/\n$/, " }\n"),
       width,
     ),
-    /contains\(database\.sku\.name, '_S_'\)/,
+    /contains\(recordConfig\.sku\.name, '_T_'\)/,
   );
   assert.match(
     await stable(source, {
       ...width,
       filepath: resolve("test", "fixtures", "main.bicepparam"),
     }),
-    /contains\(database\.sku\.name, '_S_'\)/,
+    /contains\(recordConfig\.sku\.name, '_T_'\)/,
   );
   assert.match(
-    await stable("var value = contains(database.sku.name, '_S_')\n", width),
+    await stable("var value = contains(recordConfig.sku.name, '_T_')\n", width),
     /contains\(\n/,
   );
   assert.match(
     await stable(
       source.replace(
-        "contains(database.sku.name, '_S_')",
-        "contains(database.sku.name, /* keep */ '_S_')",
+        "contains(recordConfig.sku.name, '_T_')",
+        "contains(recordConfig.sku.name, /* keep */ '_T_')",
       ),
       width,
     ),
@@ -1322,13 +1318,15 @@ test("calls under logical operators use the same layout outside condition header
 test("nested object loops compact consistently with tabs and spaces", async () => {
   const source =
     "output items array=[for x in ['one']:{nested:[for y in ['two']:{value:'${x}-${y}'}]}]\n";
-  for (const settings of [
+  for (const preferences of [
     {},
     { tabWidth: 4 },
     { useTabs: true, tabWidth: 4 },
   ]) {
-    const output = await stable(source, settings);
-    const indent = settings.useTabs ? "\t" : " ".repeat(settings.tabWidth ?? 2);
+    const output = await stable(source, preferences);
+    const indent = preferences.useTabs
+      ? "\t"
+      : " ".repeat(preferences.tabWidth ?? 2);
     assert.ok(output.includes("output items array = [for x in ['one']: {\n"));
     assert.ok(
       output.includes(
