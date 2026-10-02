@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1 (unreleased)
+## 0.3.0 (unreleased)
 
 - Keep fitting arrays of one or two small objects compact, including within
   multiline calls; honor width, comments, literals, and explicit layout choices.

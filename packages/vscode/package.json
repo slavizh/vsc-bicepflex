@@ -2,7 +2,7 @@
   "name": "bicepflex",
   "displayName": "BicepFlex",
   "description": "Standalone, configurable Bicep and Bicep parameters formatter backed by the Bicep compiler.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "publisher": "slavizh",
   "license": "MIT",
