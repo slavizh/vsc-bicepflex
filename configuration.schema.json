@@ -98,8 +98,8 @@
             "name",
             "parent",
             "scope",
-            "dependsOn",
             "location",
+            "dependsOn",
             "tags",
             "identity",
             "kind",
@@ -109,7 +109,7 @@
             "*",
             "properties"
           ],
-          "description": "Resource property priorities; * marks unlisted properties. Default: [\"name\",\"parent\",\"scope\",\"dependsOn\",\"location\",\"tags\",\"identity\",\"kind\",\"sku\",\"zones\",\"plan\",\"*\",\"properties\"]."
+          "description": "Resource property priorities; * marks unlisted properties. Default: [\"name\",\"parent\",\"scope\",\"location\",\"dependsOn\",\"tags\",\"identity\",\"kind\",\"sku\",\"zones\",\"plan\",\"*\",\"properties\"]."
         },
         "bicepModulePropertyOrder": {
           "type": "array",
@@ -177,13 +177,15 @@
           "type": "string",
           "enum": [
             "multiline",
-            "auto"
+            "auto",
+            "preserve"
           ],
           "default": "multiline",
-          "description": "Layout of nonempty objects and object types. Choices: \"multiline\" — expand nonempty objects and object types; \"auto\" — keep compact source objects on one line when they fit. Default: \"multiline\".",
+          "description": "Layout of nonempty objects and object types. Choices: \"multiline\" — expand nonempty objects and object types; \"auto\" — keep compact source objects on one line when they fit; \"preserve\" — retain the author's compact or expanded layout even beyond the width target when safe. Default: \"multiline\".",
           "enumDescriptions": [
             "expand nonempty objects and object types",
-            "keep compact source objects on one line when they fit"
+            "keep compact source objects on one line when they fit",
+            "retain the author's compact or expanded layout even beyond the width target when safe"
           ]
         },
         "bicepArrayLayout": {
@@ -194,11 +196,11 @@
             "preserve"
           ],
           "default": "compact",
-          "description": "Layout of arrays containing only primitive literals. Choices: \"compact\" — fit arrays of primitive literals on one line; \"multiline\" — expand arrays of primitive literals; \"preserve\" — retain the source layout when width permits. Default: \"compact\".",
+          "description": "Layout of arrays containing only primitive literals. Choices: \"compact\" — fit arrays of primitive literals on one line; \"multiline\" — expand arrays of primitive literals; \"preserve\" — retain the source layout even beyond the width target when safe. Default: \"compact\".",
           "enumDescriptions": [
             "fit arrays of primitive literals on one line",
             "expand arrays of primitive literals",
-            "retain the source layout when width permits"
+            "retain the source layout even beyond the width target when safe"
           ]
         },
         "bicepDeclarationSpacing": {
@@ -214,6 +216,21 @@
             "insert one blank line between declarations",
             "remove blank lines between declarations",
             "retain author spacing where safe"
+          ]
+        },
+        "bicepParameterSpacing": {
+          "type": "string",
+          "enum": [
+            "description",
+            "inherit",
+            "preserve"
+          ],
+          "default": "description",
+          "description": "Spacing between consecutive Bicep parameter declarations. Choices: \"description\" — group plain parameters and separate any parameter with @description; \"inherit\" — follow bicepDeclarationSpacing for every parameter; \"preserve\" — retain author blank lines between consecutive parameters where safe. Default: \"description\".",
+          "enumDescriptions": [
+            "group plain parameters and separate any parameter with @description",
+            "follow bicepDeclarationSpacing for every parameter",
+            "retain author blank lines between consecutive parameters where safe"
           ]
         },
         "bicepPropertyBlankLines": {
@@ -255,13 +272,15 @@
           "type": "string",
           "enum": [
             "first-use",
-            "section"
+            "section",
+            "preserve"
           ],
           "default": "first-use",
-          "description": "Place variables before their first consumer or in the variable section. Choices: \"first-use\" — place used variables before their first consumer; \"section\" — keep variables in the configured variable section. Default: \"first-use\".",
+          "description": "Place variables before first use, in the variable section, or in dependency-safe source order. Choices: \"first-use\" — place used variables before their first consumer; \"section\" — keep variables in the configured variable section; \"preserve\" — keep variables in author order when dependencies allow. Default: \"first-use\".",
           "enumDescriptions": [
             "place used variables before their first consumer",
-            "keep variables in the configured variable section"
+            "keep variables in the configured variable section",
+            "keep variables in author order when dependencies allow"
           ]
         },
         "bicepExistingResourcePlacement": {
@@ -281,26 +300,30 @@
           "type": "string",
           "enum": [
             "dependency",
-            "end"
+            "end",
+            "preserve"
           ],
           "default": "dependency",
-          "description": "Place direct resource/module outputs after their dependencies or at the end. Choices: \"dependency\" — place resource/module outputs after their dependencies; \"end\" — leave outputs in the configured output section. Default: \"dependency\".",
+          "description": "Place resource/module outputs after dependencies, at the end, or in dependency-safe source order. Choices: \"dependency\" — place resource/module outputs after their dependencies; \"end\" — leave outputs in the configured output section; \"preserve\" — keep outputs in author order when dependencies allow. Default: \"dependency\".",
           "enumDescriptions": [
             "place resource/module outputs after their dependencies",
-            "leave outputs in the configured output section"
+            "leave outputs in the configured output section",
+            "keep outputs in author order when dependencies allow"
           ]
         },
         "bicepOutputOnlyVariables": {
           "type": "string",
           "enum": [
             "end",
-            "dependency"
+            "dependency",
+            "preserve"
           ],
           "default": "end",
-          "description": "Place output-only variables and their outputs at the end or by dependency. Choices: \"end\" — keep output-only variables with outputs at the end; \"dependency\" — allow placement next to their dependencies. Default: \"end\".",
+          "description": "Place output-only variables and outputs at the end, by dependency, or in dependency-safe source order. Choices: \"end\" — keep output-only variables with outputs at the end; \"dependency\" — allow placement next to their dependencies; \"preserve\" — keep output-only helpers and outputs in author order when dependencies allow. Default: \"end\".",
           "enumDescriptions": [
             "keep output-only variables with outputs at the end",
-            "allow placement next to their dependencies"
+            "allow placement next to their dependencies",
+            "keep output-only helpers and outputs in author order when dependencies allow"
           ]
         },
         "bicepNestedResources": {
@@ -348,26 +371,30 @@
           "type": "string",
           "enum": [
             "ignore",
-            "wrap"
+            "wrap",
+            "preserve"
           ],
           "default": "ignore",
-          "description": "Whether description decorators respect the width target. Choices: \"ignore\" — leave descriptions inline regardless of width; \"wrap\" — wrap long description calls without reflowing their strings. Default: \"ignore\".",
+          "description": "Whether description decorators respect the width target. Choices: \"ignore\" — leave descriptions inline regardless of width; \"wrap\" — wrap long description calls without reflowing their strings; \"preserve\" — retain the author's inline or multiline description layout even beyond width. Default: \"ignore\".",
           "enumDescriptions": [
             "leave descriptions inline regardless of width",
-            "wrap long description calls without reflowing their strings"
+            "wrap long description calls without reflowing their strings",
+            "retain the author's inline or multiline description layout even beyond width"
           ]
         },
         "bicepDependencyOrder": {
           "type": "string",
           "enum": [
             "ready-first",
-            "dependencies-first"
+            "dependencies-first",
+            "preserve"
           ],
           "default": "ready-first",
-          "description": "Resolve dependency ties by choosing the earliest ready declaration or pulling dependencies before the earliest consumer. Choices: \"ready-first\" — choose the earliest currently ready declaration; \"dependencies-first\" — pull prerequisites before the earliest consumer. Default: \"ready-first\".",
+          "description": "Resolve dependency ties by earliest readiness, proximity to consumers, or dependency-safe source order. Choices: \"ready-first\" — choose the earliest currently ready declaration; \"dependencies-first\" — pull prerequisites before the earliest consumer; \"preserve\" — keep dependency-safe declarations in author order instead of section order. Default: \"ready-first\".",
           "enumDescriptions": [
             "choose the earliest currently ready declaration",
-            "pull prerequisites before the earliest consumer"
+            "pull prerequisites before the earliest consumer",
+            "keep dependency-safe declarations in author order instead of section order"
           ]
         },
         "bicepUnusedDeclarations": {
@@ -443,41 +470,79 @@
           "type": "string",
           "enum": [
             "auto",
-            "multiline"
+            "multiline",
+            "preserve"
           ],
           "default": "auto",
-          "description": "Keep short unions inline and wrap to width, or put every union member on its own line. Choices: \"auto\" — keep short unions inline and wrap long ones; \"multiline\" — put each union member on a separate line. Default: \"auto\".",
+          "description": "Keep unions width-aware, multiline, or in their authored member layout. Choices: \"auto\" — keep short unions inline and wrap long ones; \"multiline\" — put each union member on a separate line; \"preserve\" — keep source union layout even beyond width when safe. Default: \"auto\".",
           "enumDescriptions": [
             "keep short unions inline and wrap long ones",
-            "put each union member on a separate line"
+            "put each union member on a separate line",
+            "keep source union layout even beyond width when safe"
           ]
         },
         "bicepConditionalHeader": {
           "type": "string",
           "enum": [
+            "compact",
             "inline",
             "auto",
-            "next-line"
+            "next-line",
+            "preserve"
           ],
-          "default": "inline",
-          "description": "Keep resource/module if headers inline, move if to the next line when long, or always move it. Choices: \"inline\" — keep direct resource/module if headers inline; \"auto\" — move if to the next line only when the header exceeds width; \"next-line\" — always put if on the next line. Default: \"inline\".",
+          "default": "compact",
+          "description": "Keep direct resource/module if conditions compact and move long headers, or choose legacy placement. Choices: \"compact\" — keep direct if conditions on one line and move a long header below =; \"inline\" — keep direct resource/module if headers inline; \"auto\" — move if to the next line only when the header exceeds width; \"next-line\" — always put if on the next line; \"preserve\" — retain the author's inline or next-line direct if placement. Default: \"compact\".",
           "enumDescriptions": [
+            "keep direct if conditions on one line and move a long header below =",
             "keep direct resource/module if headers inline",
             "move if to the next line only when the header exceeds width",
-            "always put if on the next line"
+            "always put if on the next line",
+            "retain the author's inline or next-line direct if placement"
+          ]
+        },
+        "bicepIfConditionLayout": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "wrap",
+            "preserve"
+          ],
+          "default": "inline",
+          "description": "Keep if-condition calls and conditional loop headers inline, width-aware, or authored. Choices: \"inline\" — keep if-condition calls inline and compact conditional object-loop headers regardless of width; \"wrap\" — wrap calls and conditional object-loop headers to the width target; \"preserve\" — retain authored if-condition calls and conditional loop headers even beyond width. Default: \"inline\".",
+          "enumDescriptions": [
+            "keep if-condition calls inline and compact conditional object-loop headers regardless of width",
+            "wrap calls and conditional object-loop headers to the width target",
+            "retain authored if-condition calls and conditional loop headers even beyond width"
+          ]
+        },
+        "bicepLogicalCallLayout": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "wrap",
+            "preserve"
+          ],
+          "default": "inline",
+          "description": "Keep calls under && or || inline, width-aware, or in their authored layout. Choices: \"inline\" — keep calls under && and || on one line; \"wrap\" — wrap call arguments under logical operators to the width target; \"preserve\" — retain authored call layout under logical operators even beyond width. Default: \"inline\".",
+          "enumDescriptions": [
+            "keep calls under && and || on one line",
+            "wrap call arguments under logical operators to the width target",
+            "retain authored call layout under logical operators even beyond width"
           ]
         },
         "bicepLoopLayout": {
           "type": "string",
           "enum": [
             "auto",
-            "expanded"
+            "expanded",
+            "preserve"
           ],
           "default": "auto",
-          "description": "Compact object-loop headers when they fit or retain expanded brackets. Choices: \"auto\" — compact object-loop headers when they fit; \"expanded\" — retain expanded native brackets. Default: \"auto\".",
+          "description": "Compact fitting object-loop brackets, expand them, or retain authored shape. Choices: \"auto\" — compact object-loop headers when they fit; \"expanded\" — retain expanded native brackets; \"preserve\" — retain authored compact or expanded object-loop brackets even beyond width. Default: \"auto\".",
           "enumDescriptions": [
             "compact object-loop headers when they fit",
-            "retain expanded native brackets"
+            "retain expanded native brackets",
+            "retain authored compact or expanded object-loop brackets even beyond width"
           ]
         },
         "bicepImportMemberOrder": {
@@ -575,6 +640,7 @@
               "bicepObjectLayout",
               "bicepArrayLayout",
               "bicepDeclarationSpacing",
+              "bicepParameterSpacing",
               "bicepPropertyBlankLines",
               "bicepTypeOrder",
               "bicepFunctionOrder",
@@ -594,6 +660,8 @@
               "bicepImportSpacing",
               "bicepUnionLayout",
               "bicepConditionalHeader",
+              "bicepIfConditionLayout",
+              "bicepLogicalCallLayout",
               "bicepLoopLayout",
               "bicepImportMemberOrder",
               "bicepTypeMemberOrder"

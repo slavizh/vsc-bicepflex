@@ -88,6 +88,9 @@ test("native option validation identifies invalid types, ranges, names, and deco
     [{ bicepTabWidth: 1001 }, /bicepTabWidth/],
     [{ bicepPrintWidth: -1 }, /bicepPrintWidth/],
     [{ bicepIndentStyle: "mixed" }, /bicepIndentStyle/],
+    [{ bicepLogicalCallLayout: "invalid" }, /bicepLogicalCallLayout/],
+    [{ bicepIfConditionLayout: "invalid" }, /bicepIfConditionLayout/],
+    [{ bicepParameterSpacing: "invalid" }, /bicepParameterSpacing/],
     [{ printWidth: 0 }, /printWidth/],
     [{ tabWidth: 1001 }, /tabWidth/],
     [{ bicepDeclarationOrder: null }, /Ordering settings/],
@@ -129,6 +132,17 @@ test("native parser infers bicepparam from filepath when parser is omitted", asy
   assert.equal(
     response.text,
     "using './main.bicep'\n\nparam name = 'example'\n",
+  );
+});
+
+test("native resource property defaults place location before dependsOn", async () => {
+  const source =
+    "resource first 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'={name:'first',location:'westeurope'}\n" +
+    "resource next 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'={dependsOn:[first],location:'westeurope',name:'next'}\n";
+  const [response] = await bridge([request({}, { text: source })]);
+  assert.match(
+    response.text,
+    /resource next[^\n]+\{\n  name: 'next'\n  location: 'westeurope'\n  dependsOn:/,
   );
 });
 

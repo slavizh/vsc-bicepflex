@@ -38,6 +38,16 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "type Child={enabled:bool}\n@sealed()\n@description('Configuration.')\ntype Parent={child:Child}\nparam config Parent={child:{enabled:true}}\noutput enabled bool=config.child.enabled\n",
       "param name string='world'\noutput text string='''\n  hello  \n\n    world\n'''\noutput greeting string='\\u{4e16}\\u{754c} ${name}'\n",
       "@maxLength(20)\n@description('Name.')\n@minLength(3)\nparam name string='example'\noutput name string=name\n",
+      "param widgets array=[{name:'tile'}]\nvar widgetResults=[for widget in widgets: {outputs:{metadata:{name:widget.name},entries:[]}}]\noutput catalog array=[for (widget,i) in widgets: union(widgetResults[i].outputs.metadata, {\nentries:widgetResults[i].outputs.entries\n})]\n",
+      "param computeProfiles array=[{properties:{accelerated:true}}]\nvar i=0\noutput plan object={usesAcceleration:union({ accelerated : false },computeProfiles[i].properties).accelerated}\n",
+      "param profile object={}\n// Options for the secondary profile\nparam profileOptions object={}\noutput result object=union(profile,profileOptions)\n",
+      "param volumes array=[{type:'SharedDisk',volume:{share:'one'}}]\noutput config object={mounted:length(volumes)>0?union({first:{share:volumes[0].type =~ 'SharedDisk'?volumes[0].volume.share:volumes[0].type =~ 'ObjectDisk'?'object':''}},length(volumes)>1?{second:{share:volumes[1].type =~ 'SharedDisk'?'x':'y'}}:{}):{}}\n",
+      "param enabled bool=true\noutput config object={gatewayOptions:enabled?{id:'management'}:null,spec:enabled?{url:'https://example.com'}:null}\n",
+      "output policies array=filter(map(items(union({policies:{rule:{deploy:true}}},{policies:{}}).policies),policy=>union({lookupKey:policy.key},policy.value)),policy=>policy.deploy)\n",
+      "param recordConfig object={sku:{name:'Starter'},discountAvailable:false}\noutput config object={pricingTier:recordConfig.sku.name =~ 'Shared' || startsWith(recordConfig.sku.name,'S') || startsWith(recordConfig.sku.name,'P') || startsWith(recordConfig.sku.name,'Starter') || contains(recordConfig.sku.name,'_T_')?null:recordConfig.discountAvailable?'Discounted':'Regular'}\n",
+      "param name string='Starter'\noutput enabled bool=startsWith(name,'Starter') || contains(name,'_T_')\n",
+      "param recordConfig object={replica:{sourceName:''},status:'waiting',protectionMode:'Configured'}\nresource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'=if(!empty(recordConfig.replica.sourceName)||recordConfig.status =~ 'paused'||recordConfig.status =~ 'active'?false:recordConfig.protectionMode !~ 'Disabled'){name:'identity',location:'westeurope'}\n",
+      "param first object={code:'alpha'}\nparam others array=[{code:'beta'}]\noutput records array=union([{code:first.code}],map(others,entry=>{code:format('{0}-{1}',entry.code,first.code)}))\n",
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

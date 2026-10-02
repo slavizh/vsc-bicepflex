@@ -8,7 +8,7 @@ const bridge = fileURLToPath(
   new URL("./bridge/Bicep.Formatter.dll", import.meta.url),
 );
 const maxBytes = 32 * 1024 * 1024;
-export const bridgeProtocolVersion = 1;
+export const bridgeProtocolVersion = 2;
 
 export class BicepFormattingError extends Error {
   readonly code: string;

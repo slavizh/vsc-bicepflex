@@ -63,7 +63,22 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
         var scopedReferences = input.ToDictionary(n => n, n => References(n).Select(InScope)
             .Where(reference => reference is not null && reference != n).Cast<SyntaxBase>().ToHashSet());
         HashSet<SyntaxBase> Refs(SyntaxBase node) => scopedReferences[node];
-        var helpers = input.Where(n => IsHelper(n) && input.Any(c => Refs(c).Contains(n))).ToHashSet();
+        bool OutputOnly(SyntaxBase variable, HashSet<SyntaxBase> path, HashSet<SyntaxBase> candidates)
+        {
+            if (!path.Add(variable)) return false;
+            var consumers = input.Where(n => Refs(n).Contains(variable)).ToList();
+            var answer = consumers.Count > 0 && consumers.All(n =>
+                n is OutputDeclarationSyntax || candidates.Contains(n) && OutputOnly(n, path, candidates));
+            path.Remove(variable);
+            return answer;
+        }
+
+        var variables = input.Where(n => n is VariableDeclarationSyntax).ToHashSet();
+        var preservedOutputVariables = options.BicepOutputOnlyVariables == "preserve"
+            ? variables.Where(v => OutputOnly(v, [], variables)).ToHashSet()
+            : [];
+        var helpers = input.Where(n => IsHelper(n) && !preservedOutputVariables.Contains(n) &&
+            input.Any(c => Refs(c).Contains(n))).ToHashSet();
         var anchors = input.Where(n => !helpers.Contains(n)).ToList();
         var dependencies = anchors.ToDictionary(n => n, _ => new HashSet<SyntaxBase>());
         var visiting = new HashSet<SyntaxBase>();
@@ -100,17 +115,37 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
             }
         }
 
-        bool OutputOnly(SyntaxBase helper, HashSet<SyntaxBase> path)
+        var preserved = anchors.Where(n =>
+            options.BicepDependencyOrder == "preserve" ||
+            n is VariableDeclarationSyntax && options.BicepVariablePlacement == "preserve" ||
+            n is OutputDeclarationSyntax && options.BicepOutputPlacement == "preserve" ||
+            options.BicepOutputOnlyVariables == "preserve" &&
+                (preservedOutputVariables.Contains(n) ||
+                 n is OutputDeclarationSyntax && Refs(n).Overlaps(preservedOutputVariables))).ToHashSet();
+        if (preserved.Count > 0)
         {
-            if (!path.Add(helper)) return false;
-            var consumers = input.Where(n => Refs(n).Contains(helper)).ToList();
-            var answer = consumers.Count > 0 && consumers.All(n =>
-                n is OutputDeclarationSyntax || helpers.Contains(n) && OutputOnly(n, path));
-            path.Remove(helper);
-            return answer;
+            bool DependsOn(SyntaxBase node, SyntaxBase dependency, HashSet<SyntaxBase> visited)
+            {
+                if (!visited.Add(node)) return false;
+                return dependencies[node].Any(d => d == dependency || DependsOn(d, dependency, visited));
+            }
+
+            for (var i = 0; i < anchors.Count; i++)
+            {
+                for (var j = i + 1; j < anchors.Count; j++)
+                {
+                    var earlier = anchors[i];
+                    var later = anchors[j];
+                    if ((preserved.Contains(earlier) || preserved.Contains(later)) &&
+                        !DependsOn(earlier, later, []))
+                    {
+                        dependencies[later].Add(earlier);
+                    }
+                }
+            }
         }
 
-        var outputOnly = helpers.Where(h => OutputOnly(h, [])).ToHashSet();
+        var outputOnly = helpers.Where(h => OutputOnly(h, [], helpers)).ToHashSet();
         var emitted = new HashSet<SyntaxBase>();
         var result = new List<SyntaxBase>();
         int Rank(SyntaxBase node)

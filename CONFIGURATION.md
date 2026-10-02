@@ -48,6 +48,24 @@ for the options it specifies.
 The extension reads project config and EditorConfig only in trusted workspaces.
 [configuration.example.json](configuration.example.json) contains all defaults.
 
+## Parameter spacing
+
+By default, consecutive `.bicep` parameter declarations without
+`@description` have no blank line between them. A parameter decorated with
+`@description` (including `@sys.description`) is separated from its neighboring
+parameters by one blank line. Other decorators do not separate parameters.
+Comments attached directly to the next plain parameter remain in the compact
+block; a blank line between a comment and its parameter retains a section
+boundary. Spacing next to non-parameter declarations follows
+`bicepDeclarationSpacing`; `.bicepparam` assignments are unaffected. Set
+`bicepParameterSpacing: "preserve"` to retain authored blank lines even before
+an attached comment.
+
+Set the `bicepParameterSpacing` option to `"inherit"` in project configuration (or
+`"bicepFlex.bicepParameterSpacing": "inherit"` in VS Code Settings) to apply
+`bicepDeclarationSpacing` to all parameter gaps instead. This also restores
+author spacing when `bicepDeclarationSpacing` is `"preserve"`.
+
 ## Named presets
 
 Choose a VS Code setting in User or Workspace Settings:
@@ -144,8 +162,8 @@ Resources/modules share the earlier of their two priorities unless
   "name",
   "parent",
   "scope",
-  "dependsOn",
   "location",
+  "dependsOn",
   "tags",
   "identity",
   "kind",
@@ -224,45 +242,98 @@ standard Prettier layout settings continue to work.
 
 ### Ordering
 
-| Option                           | Default                | Values and behavior                                                                                                                                                            |
-| -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `bicepSortDeclarations`          | `true`                 | Enable section/dependency sorting; `false` preserves declaration sequence                                                                                                      |
-| `bicepDeclarationOrder`          | Array above            | Declaration section priorities                                                                                                                                                 |
-| `bicepDependencyOrder`           | `"ready-first"`        | `"ready-first"` chooses the earliest currently ready declaration; `"dependencies-first"` pulls prerequisites before the earliest consumer                                      |
-| `bicepResourceModuleOrder`       | `"combined"`           | `"combined"` keeps resources/modules together; `"separate"` honors their separate section priorities                                                                           |
-| `bicepUnusedDeclarations`        | `"boundary"`           | `"boundary"` fixes unused vars/unreferenced existing resources in place; `"section"` allows them to move with normal section sorting                                           |
-| `bicepSectionComments`           | `"boundary"`           | `"boundary"` fixes headings followed by a blank line; `"attached"` moves headings with the next declaration                                                                    |
-| `bicepIgnoredDeclarations`       | `"move"`               | `"move"` permits an ignored declaration and its ignore comment to move; `"boundary"` fixes them in place                                                                       |
-| `bicepTypeOrder`                 | `"dependents-first"`   | `"dependents-first"` puts referencing types first; `"dependencies-first"` puts referenced types first; `"preserve"` keeps source order within the type section                 |
-| `bicepFunctionOrder`             | `"dependencies-first"` | `"dependencies-first"` puts helpers first; `"dependents-first"` puts callers first; `"preserve"` retains source order within the function section                              |
-| `bicepVariablePlacement`         | `"first-use"`          | `"first-use"` emits used variables immediately before their first consumer; `"section"` retains them in the configured var section where dependencies permit                   |
-| `bicepExistingResourcePlacement` | `"first-use"`          | `"first-use"` emits used existing resources before first use; `"preserve"` retains their position in the dependency-safe resource sequence                                     |
-| `bicepOutputPlacement`           | `"dependency"`         | `"dependency"` places resource/module-related outputs after their last required resource/module; `"end"` leaves outputs in their configured output section                     |
-| `bicepOutputOnlyVariables`       | `"end"`                | `"end"` keeps output-only variables with outputs in the output section; `"dependency"` permits dependency-adjacent placement                                                   |
-| `bicepSortProperties`            | `true`                 | Enable immediate resource/module property sorting                                                                                                                              |
-| `bicepResourcePropertyOrder`     | Array above            | Resource property priorities                                                                                                                                                   |
-| `bicepModulePropertyOrder`       | Array above            | Module property priorities                                                                                                                                                     |
-| `bicepNestedResources`           | `"last"`               | `"last"` places nested resources after ordinary properties; `"preserve"` fixes them as boundaries between property sections                                                    |
-| `bicepSortDecorators`            | `true`                 | Enable built-in decorator priority sorting                                                                                                                                     |
-| `bicepDecoratorOrder`            | Array above            | Recognized built-in decorator priorities                                                                                                                                       |
-| `bicepImportMemberOrder`         | `"preserve"`           | `"preserve"` retains member order; `"alphabetical"` sorts case-sensitively by original imported name, retaining aliases                                                        |
-| `bicepTypeMemberOrder`           | `"preserve"`           | `"preserve"` retains object-type member order; `"required-first"` places syntactically nullable (`T?`) members after other members, retaining relative order within each group |
+| Option                           | Default                | Values and behavior                                                                                                                                                                                 |
+| -------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bicepSortDeclarations`          | `true`                 | Enable section/dependency sorting; `false` preserves declaration sequence                                                                                                                           |
+| `bicepDeclarationOrder`          | Array above            | Declaration section priorities                                                                                                                                                                      |
+| `bicepDependencyOrder`           | `"ready-first"`        | `"ready-first"` chooses the earliest currently ready declaration; `"dependencies-first"` pulls prerequisites before the earliest consumer; `"preserve"` retains dependency-safe source order        |
+| `bicepResourceModuleOrder`       | `"combined"`           | `"combined"` keeps resources/modules together; `"separate"` honors their separate section priorities                                                                                                |
+| `bicepUnusedDeclarations`        | `"boundary"`           | `"boundary"` fixes unused vars/unreferenced existing resources in place; `"section"` allows them to move with normal section sorting                                                                |
+| `bicepSectionComments`           | `"boundary"`           | `"boundary"` fixes headings followed by a blank line; `"attached"` moves headings with the next declaration                                                                                         |
+| `bicepIgnoredDeclarations`       | `"move"`               | `"move"` permits an ignored declaration and its ignore comment to move; `"boundary"` fixes them in place                                                                                            |
+| `bicepTypeOrder`                 | `"dependents-first"`   | `"dependents-first"` puts referencing types first; `"dependencies-first"` puts referenced types first; `"preserve"` keeps source order within the type section                                      |
+| `bicepFunctionOrder`             | `"dependencies-first"` | `"dependencies-first"` puts helpers first; `"dependents-first"` puts callers first; `"preserve"` retains source order within the function section                                                   |
+| `bicepVariablePlacement`         | `"first-use"`          | `"first-use"` emits used variables immediately before their first consumer; `"section"` retains them in the configured var section; `"preserve"` retains source positions where dependencies permit |
+| `bicepExistingResourcePlacement` | `"first-use"`          | `"first-use"` emits used existing resources before first use; `"preserve"` retains their position in the dependency-safe resource sequence                                                          |
+| `bicepOutputPlacement`           | `"dependency"`         | `"dependency"` places resource/module-related outputs after dependencies; `"end"` leaves outputs in their configured output section; `"preserve"` retains dependency-safe source positions          |
+| `bicepOutputOnlyVariables`       | `"end"`                | `"end"` keeps output-only variables with outputs at the end; `"dependency"` permits dependency-adjacent placement; `"preserve"` retains dependency-safe source positions                            |
+| `bicepSortProperties`            | `true`                 | Enable immediate resource/module property sorting                                                                                                                                                   |
+| `bicepResourcePropertyOrder`     | Array above            | Resource property priorities                                                                                                                                                                        |
+| `bicepModulePropertyOrder`       | Array above            | Module property priorities                                                                                                                                                                          |
+| `bicepNestedResources`           | `"last"`               | `"last"` places nested resources after ordinary properties; `"preserve"` fixes them as boundaries between property sections                                                                         |
+| `bicepSortDecorators`            | `true`                 | Enable built-in decorator priority sorting                                                                                                                                                          |
+| `bicepDecoratorOrder`            | Array above            | Recognized built-in decorator priorities                                                                                                                                                            |
+| `bicepImportMemberOrder`         | `"preserve"`           | `"preserve"` retains member order; `"alphabetical"` sorts case-sensitively by original imported name, retaining aliases                                                                             |
+| `bicepTypeMemberOrder`           | `"preserve"`           | `"preserve"` retains object-type member order; `"required-first"` places syntactically nullable (`T?`) members after other members, retaining relative order within each group                      |
 
 ### Wrapping and whitespace
 
-| Option                    | Default       | Values and behavior                                                                                                                                                         |
-| ------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bicepObjectLayout`       | `"multiline"` | `"multiline"` expands nonempty objects/types; `"auto"` allows compact source objects to remain compact when they fit                                                        |
-| `bicepArrayLayout`        | `"compact"`   | `"compact"` fits primitive arrays inline; `"multiline"` expands them; `"preserve"` retains the source compact/expanded preference, subject to width                         |
-| `bicepDeclarationSpacing` | `"separate"`  | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines   |
-| `bicepImportSpacing`      | `"compact"`   | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                |
-| `bicepPropertyBlankLines` | `false`       | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                      |
-| `bicepUnionLayout`        | `"auto"`      | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` places every member of a multi-member union on its own line                                       |
-| `bicepConditionalHeader`  | `"inline"`    | `"inline"` keeps direct resource/module `if` headers inline even when long; `"auto"` moves `if` below `=` only when the header exceeds width; `"next-line"` always moves it |
-| `bicepLoopLayout`         | `"auto"`      | `"auto"` compacts object-loop headers when they fit and closes with `}]`; `"expanded"` retains the native bracket layout (multiline for multiline bodies)                   |
-| `bicepQuoteProperties`    | `"as-needed"` | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                             |
-| `bicepLambdaParentheses`  | `"avoid"`     | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                           |
-| `bicepDescriptionWidth`   | `"ignore"`    | `"ignore"` leaves descriptions inline regardless of width; `"wrap"` wraps the call around its argument when long, never reflows or splits the string                        |
+Extra whitespace between syntax tokens on the same line is reduced to a single
+space, including before an extension alias (`extension '...' as name`). This does
+not change indentation, string contents, comments, or ignored declarations.
+Multiline object, array, loop, and function-call branches of ternary expressions
+indent by one configured level relative to `?` or `:`. Nested ternaries keep
+one level per branch; multiline string and comment contents are unchanged.
+Nested ternaries within a multiline call argument retain their own branch
+indentation; only direct branches of an enclosing ternary share its
+continuation dedent. Sibling object properties remain aligned.
+When a lambda expression wraps after `=>`, its body aligns with the lambda
+header, including lambdas nested inside calls. Comments and multiline literals
+remain protected.
+When a `for` expression's ternary body has a wrapped condition, its `?` and
+`:` branches indent one more level than the loop-body condition continuation.
+
+| Option                    | Default         | Values and behavior                                                                                                                                                                                                                                                 |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bicepObjectLayout`       | `"multiline"`   | `"multiline"` expands nonempty objects/types except safe object arguments in fitting calls; `"auto"` permits compact source objects; `"preserve"` retains authored shape even beyond width when safe                                                                |
+| `bicepArrayLayout`        | `"compact"`     | `"compact"` fits primitive arrays and arrays of one or two small objects inline when the line fits; `"multiline"` expands them; `"preserve"` retains authored shape even beyond width when safe                                                                     |
+| `bicepDeclarationSpacing` | `"separate"`    | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines; parameter/import spacing can override it                                                 |
+| `bicepParameterSpacing`   | `"description"` | `"description"` groups plain parameters and separates described ones; `"inherit"` follows `bicepDeclarationSpacing`; `"preserve"` retains author gaps between consecutive parameters                                                                                |
+| `bicepImportSpacing`      | `"compact"`     | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                                                                                                        |
+| `bicepPropertyBlankLines` | `false`         | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                                                                                                              |
+| `bicepUnionLayout`        | `"auto"`        | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` puts every member on a line; `"preserve"` retains authored member breaks even beyond width                                                                                                |
+| `bicepConditionalHeader`  | `"compact"`     | `"compact"` keeps safe direct resource/module `if` conditions intact and moves long headers below `=`; `"inline"` keeps the header on the declaration; `"auto"` moves a long unsplit header; `"next-line"` always moves it; `"preserve"` retains authored placement |
+| `bicepIfConditionLayout`  | `"inline"`      | `"inline"` keeps calls in `if` conditions inline and compacts conditional object-loop headers beyond width; `"wrap"` allows width-based wrapping; `"preserve"` retains authored call breaks                                                                         |
+| `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls under logical operators on one line even beyond width in any expression; `"wrap"` allows width-based argument wrapping; `"preserve"` retains authored argument breaks                                                                        |
+| `bicepLoopLayout`         | `"auto"`        | `"auto"` compacts fitting object-loop headers and fitting call-expression loops; `"expanded"` retains native brackets; `"preserve"` retains authored compact/expanded brackets even beyond width                                                                    |
+| `bicepQuoteProperties`    | `"as-needed"`   | `"as-needed"` removes optional quotes from identifier keys; `"preserve"` retains author quoting                                                                                                                                                                     |
+| `bicepLambdaParentheses`  | `"avoid"`       | `"avoid"` removes optional single-parameter parentheses; `"always"` adds them; `"preserve"` retains source choice                                                                                                                                                   |
+| `bicepDescriptionWidth`   | `"ignore"`      | `"ignore"` leaves descriptions inline regardless of width; `"wrap"` wraps long calls without splitting strings; `"preserve"` retains authored inline/multiline shape beyond width                                                                                   |
+
+For width-based wrapping of nonlogical `if` conditions in project configuration:
+
+```json
+{
+  "bicepIfConditionLayout": "wrap"
+}
+```
+
+In VS Code Settings, use `bicepFlex.bicepIfConditionLayout` instead.
+`bicepLogicalCallLayout` separately controls calls under `&&`/`||` in any
+expression, including ternary and `if` conditions. `"wrap"` on the `if` setting
+does not override the logical-call setting. A nested call's wrapping or
+source-preserved breaks also take precedence over an enclosing call's inline or
+preserve choice and over compact object, array, ternary, or loop layouts.
+`bicepLoopLayout: "expanded"` still
+expands brackets even if the condition remains inline. Comments and multiline
+literals prevent unsafe flattening. A multiline loop collection can still
+require expanded brackets. Compact conditional loops with parenthesized collections use
+`in (collection) : if (...)` spacing.
+Call-expression loops can also compact both brackets and object arguments
+when the complete line fits. Fitting calls in property values similarly
+collapse object arguments, including calls followed by property access.
+These inline object arguments have no padding inside braces (`{slots: slots}`);
+fitting ternaries in object properties likewise compact object branches
+without padding (`apiDefinition: enabled ? {url: endpoint} : null`).
+Arrays of one or two objects with at most two properties each also use tight
+braces (`[{code: first.code}]`) when the entire line fits. This applies inside
+multiline calls and object properties, but not when comments or multiline
+literals require expansion. Explicit multiline array layout and source-preserving
+object/array layout take precedence.
+Other inline objects retain native spacing.
+Comments, directives, multiline literals, and
+`bicepObjectLayout: "preserve"` prevent collapsing an expanded object argument.
+`bicepLoopLayout: "expanded"` keeps these loop brackets expanded.
 
 ## Interactions and examples
 
@@ -292,9 +363,21 @@ To separate declarations while keeping imports together:
 ```
 
 Import spacing is more specific and wins for consecutive imports. To preserve
-both author declaration and import spacing, set both options to `"preserve"`,
-or set declaration spacing to `"preserve"` and import spacing to `"inherit"`.
+author spacing everywhere, set declaration, import, and parameter spacing to
+`"preserve"` (or set import and parameter spacing to `"inherit"`).
 Comment sections are not removed to join an import block.
+
+`"preserve"` is a choice where it changes a formatting policy, not a global
+switch. To retain declaration, property, or decorator order, turn off the
+respective `bicepSort*` boolean. `bicepPropertyBlankLines: true` retains up to
+one author blank line between properties; the `"boundary"` choices on unused
+declarations, section headings, and ignored declarations already pin those
+nodes. Layout preservation keeps source line-break choices even when they
+exceed `printWidth`, but cannot move comments, directives, or multiline
+literals to force a layout. It never bypasses syntax, comment, or diagnostic
+safety checks. Placement `"preserve"` choices keep source order only where
+dependency constraints allow; they do not make an invalid declaration order
+valid.
 
 ### Disable movement but keep whitespace formatting
 
@@ -347,8 +430,16 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
   }
 ```
 
-The conditional policy applies to a direct resource/module `if`. A conditional
-inside a `for` follows the loop policy instead, because its grammar differs.
+The default `"compact"` keeps a safe direct resource/module `if` condition
+on one line, moving the entire `if (...) {` below `=` when the full header is
+longer than `printWidth`. Its body keeps the normal single indentation level,
+as in `resource r '...' =` followed by `  if (...) {` and `  name: ...`.
+`"inline"` keeps the prior placement even beyond width; `"auto"` moves only
+unsplit long headers without compacting conditions. Explicit
+`bicepIfConditionLayout: "wrap"` and authored call breaks with `"preserve"`
+remain respected. Comments and multiline literals are not flattened to force
+the condition onto one line. A conditional inside a `for` follows the loop
+policy instead, because its grammar differs.
 
 ## Precedence and safety
 

@@ -6,7 +6,9 @@ const vscode = require("vscode");
 async function run() {
   const folder = vscode.workspace.workspaceFolders?.[0];
   assert.ok(folder);
-  const extension = vscode.extensions.getExtension("slavizh.bicepflex");
+  const extension = vscode.extensions.getExtension(
+    "cloudadministrator.bicepflex",
+  );
   assert.ok(extension);
   await extension.activate();
   const contributed =
@@ -14,7 +16,21 @@ async function run() {
   const configurationOptions = Object.keys(contributed).filter((key) =>
     key.startsWith("bicepFlex."),
   );
-  assert.equal(configurationOptions.length, 40);
+  const schema = JSON.parse(
+    await fs.readFile(
+      path.join(extension.extensionPath, "schemas", "prettier.schema.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    configurationOptions.slice().sort(),
+    [
+      "bicepFlex.preset",
+      ...Object.keys(schema.$defs.configuration.properties)
+        .filter((name) => name !== "overrides")
+        .map((name) => `bicepFlex.${name}`),
+    ].sort(),
+  );
   assert.deepEqual(
     configurationOptions.map((key) => contributed[key].order),
     Array.from(
@@ -77,10 +93,133 @@ async function run() {
     outcomes.push({ file, language, formatted: true });
   }
   const config = vscode.workspace.getConfiguration("bicepFlex");
+  const extensionSource =
+    "extension 'br:example.invalid/bicep/extensions/sample/v1:1.0.0'  as sampleExtension\n";
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "extension-alias.bicep"),
+    extensionSource,
+  );
+  const extensionAlias = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "extension-alias.bicep"),
+  );
+  await vscode.window.showTextDocument(extensionAlias);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(
+    extensionAlias.getText(),
+    extensionSource.replace("  as ", " as "),
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "compact-objects.bicep"),
+    "var result={entries:union([{code: first.id}],map(others,item=>{code:item.code}))}\n",
+  );
+  const compactObjects = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "compact-objects.bicep"),
+  );
+  await vscode.window.showTextDocument(compactObjects);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(compactObjects.getText(), /\[\{code: first\.id\}\]/);
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "ternary-object.bicep"),
+    "param enabled bool\nvar result = enabled ? {name:'first'} : {name:'other'}\n",
+  );
+  const ternaryObject = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "ternary-object.bicep"),
+  );
+  await vscode.window.showTextDocument(ternaryObject);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(
+    ternaryObject.getText(),
+    /\n {2}\? \{\n {4}name: 'first'\n {2}\}\n {2}: \{\n {4}name: 'other'\n {2}\}/,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "loop-ternary.bicep"),
+    "param names array\nvar values = [for name in names: union({first:name},{other:name}).first == 'first' ? name : 'other']\n",
+  );
+  const loopTernary = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "loop-ternary.bicep"),
+  );
+  await vscode.window.showTextDocument(loopTernary);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(loopTernary.getText(), /\n {2}for name in names: union\(/);
+  assert.match(loopTernary.getText(), /\n {6}\? name\n {6}: 'other'\n\]/);
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "conditional-loop.bicep"),
+    "resource apps 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = [for item in (union(defaults, overrides).directory.validation.rules.eligibleEntryIdentifiers): if (union(defaults, overrides).directory.keyStyle == 'Aliases') {alias:item}]\n",
+  );
+  const conditionalLoop = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "conditional-loop.bicep"),
+  );
+  await vscode.window.showTextDocument(conditionalLoop);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(
+    conditionalLoop.getText(),
+    / = \[for item in \(union\(defaults, overrides\)\.directory\.validation\.rules\.eligibleEntryIdentifiers\) : if \(union\(defaults, overrides\)\.directory\.keyStyle == 'Aliases'\) \{\n  alias: item\n\}\]/,
+  );
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "direct-if.bicep"),
+    "resource conditionalIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (!empty(recordConfig.replica.sourceName) || recordConfig.status =~ 'paused' || recordConfig.status =~ 'active' ? false : recordConfig.protectionMode !~ 'Disabled') {\n  name: 'current'\n  parent: parentIdentity\n  properties: {\n    state: recordConfig.protectionMode\n  }\n}\n",
+  );
+  const directIf = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "direct-if.bicep"),
+  );
+  await vscode.window.showTextDocument(directIf);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(
+    directIf.getText(),
+    / =\n  if \([^\n]*\? false : [^\n]*\) \{\n  name: 'current'/,
+  );
+  assert.equal(
+    config.inspect("bicepConditionalHeader").defaultValue,
+    "compact",
+  );
   assert.equal(config.inspect("bicepPrintWidth").defaultValue, 180);
   assert.equal(config.inspect("bicepPrintWidth").workspaceValue, undefined);
   assert.equal(config.inspect("bicepTabWidth").defaultValue, 2);
   assert.equal(config.inspect("bicepArrayLayout").defaultValue, "compact");
+  assert.equal(config.inspect("bicepIfConditionLayout").defaultValue, "inline");
+  assert.deepEqual(
+    config.inspect("bicepResourcePropertyOrder").defaultValue.slice(0, 5),
+    ["name", "parent", "scope", "location", "dependsOn"],
+  );
+  assert.equal(
+    config.inspect("bicepParameterSpacing").defaultValue,
+    "description",
+  );
+  for (const [file, spacing, expected] of [
+    [
+      "grouped-params.bicep",
+      undefined,
+      "param first string\nparam second string\n",
+    ],
+    [
+      "separate-params.bicep",
+      "inherit",
+      "param first string\n\nparam second string\n",
+    ],
+  ]) {
+    if (spacing) {
+      await config.update(
+        "bicepParameterSpacing",
+        spacing,
+        vscode.ConfigurationTarget.Workspace,
+      );
+    }
+    await fs.writeFile(
+      path.join(folder.uri.fsPath, file),
+      "param first string\n\nparam second string\n",
+    );
+    const parameters = await vscode.workspace.openTextDocument(
+      vscode.Uri.joinPath(folder.uri, file),
+    );
+    await vscode.window.showTextDocument(parameters);
+    await vscode.commands.executeCommand("editor.action.formatDocument");
+    assert.equal(parameters.getText(), expected);
+  }
+  await config.update(
+    "bicepParameterSpacing",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
   await config.update("bicepTabWidth", 4, vscode.ConfigurationTarget.Workspace);
   await fs.writeFile(
     path.join(folder.uri.fsPath, "settings.bicep"),
@@ -154,7 +293,7 @@ async function run() {
     if (settingDescription.includes("Default:")) break;
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
-  assert.match(settingDescription, /Default:.*inline/);
+  assert.match(settingDescription, /Default:.*compact/);
   assert.match(settingDescription, /next-line.*always put if on the next line/);
   await config.update(
     "bicepTabWidth",

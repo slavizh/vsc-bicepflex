@@ -14,6 +14,10 @@ test("bridge response validation refuses stale, malformed and unsuccessful respo
   for (const response of [
     { text: "must not return this" },
     {
+      protocolVersion: 1,
+      text: "must not return this",
+    },
+    {
       protocolVersion: bridgeProtocolVersion + 1,
       text: "must not return this",
     },
@@ -130,6 +134,11 @@ test("native bridge rejects incompatible requests before deserializing options",
       options: { bicepDeclarationOrder: "param,var" },
     },
     {
+      protocolVersion: 1,
+      text: "param name string\n",
+      options: { bicepConditionalHeader: "compact" },
+    },
+    {
       protocolVersion: bridgeProtocolVersion + 1,
       text: "param name string\n",
       options: {},
@@ -200,17 +209,17 @@ test("native bridge rejects incompatible requests before deserializing options",
     );
   });
   assert.equal(responses.length, requests.length);
-  for (const response of responses.slice(0, 2)) {
+  for (const response of responses.slice(0, 3)) {
     assert.equal(response.code, "BICEP_BRIDGE_VERSION_MISMATCH");
     assert.match(response.error, /Developer: Reload Window/);
     assert.ok(!response.error.includes("System.String[]"));
   }
-  assert.equal(responses[2].code, "BICEP_INVALID_CONFIGURATION");
-  assert.match(responses[2].error, /bicepDeclarationOrder.*JSON array/);
   assert.equal(responses[3].code, "BICEP_INVALID_CONFIGURATION");
-  assert.match(responses[3].error, /bicepPrintWidth/);
+  assert.match(responses[3].error, /bicepDeclarationOrder.*JSON array/);
   assert.equal(responses[4].code, "BICEP_INVALID_CONFIGURATION");
-  assert.equal(responses[5].text, "param name string\n");
+  assert.match(responses[4].error, /bicepPrintWidth/);
+  assert.equal(responses[5].code, "BICEP_INVALID_CONFIGURATION");
+  assert.equal(responses[6].text, "param name string\n");
 });
 
 test("syntax errors expose compiler codes and source locations without applying output", async () => {

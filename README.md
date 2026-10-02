@@ -35,10 +35,10 @@ for the two Bicep languages in VS Code User Settings (or workspace settings):
 ```json
 {
   "[bicep]": {
-    "editor.defaultFormatter": "slavizh.bicepflex"
+    "editor.defaultFormatter": "cloudadministrator.bicepflex"
   },
   "[bicep-params]": {
-    "editor.defaultFormatter": "slavizh.bicepflex"
+    "editor.defaultFormatter": "cloudadministrator.bicepflex"
   }
 }
 ```
@@ -82,27 +82,88 @@ a separately installed Prettier plugin. See
 ## Formatting contract
 
 Defaults are two spaces, a 180-column wrapping target, one blank line between
-declarations, and a final newline. Nonempty objects and object types are
+declarations other than consecutive imports and plain parameters, and a final
+newline. Consecutive parameters without
+`@description` form a compact block; a parameter with `@description` has a
+blank line before and after it. Nonempty objects and object types are
 multiline; short primitive arrays and unions can fit on one line. Type members,
 import members, ordinary object properties, and array elements retain their
 order.
+Comments attached directly to a following plain parameter stay within the
+compact block; blank-line-separated comment sections remain separate.
 
 Consecutive import declarations form a compact block without blank lines between
 them. A blank line separates that block from other declarations. Comment sections
-are preserved; `bicepDeclarationSpacing: "preserve"` retains author spacing instead.
+are preserved. Set `bicepParameterSpacing: "inherit"` to use
+`bicepDeclarationSpacing` for all parameter gaps; setting declaration spacing
+to `"preserve"` alone still groups plain parameters.
+Use `bicepParameterSpacing: "preserve"` to retain author gaps between
+consecutive parameters independently of general declaration spacing.
 
-Long calls and ternaries wrap at grammar-valid positions. Binary expressions
-cannot arbitrarily wrap. Conditional resource/module headers keep `if` on the
-declaration line even beyond the width target. Existing comments or directives
-that make that layout unsafe take precedence. Long `@description(...)` decorators
+Long calls and ternaries wrap at grammar-valid positions. Nested ternary
+continuations and multiline object, array, loop, or call branches advance by
+one indentation level (two spaces by default), without reindenting multiline
+strings or comments. Ternaries inside wrapped call arguments keep their own
+continuation indent rather than inheriting a dedent from an enclosing
+conditional; sibling object properties stay aligned. In array comprehensions,
+`?` and `:` following a wrapped
+loop-body condition get one additional continuation level. Binary expressions
+cannot arbitrarily wrap. When a lambda body starts on a new line, it aligns
+with the lambda header rather than gaining another indentation level; nested
+lambda bodies follow the same rule. Calls under `&&`/`||` operators stay inline
+by default in all expressions, even beyond the width target, so logical clauses
+remain readable. Set `bicepFlex.bicepLogicalCallLayout` to `"wrap"` to allow
+width-based call wrapping instead; comments and multiline literals are never
+flattened to force a call inline. Other calls inside `if` conditions also stay
+inline by default; `bicepFlex.bicepIfConditionLayout: "wrap"` allows them to
+wrap. Direct resource/module `if` conditions stay on one line by default;
+if the full header exceeds the width target, the whole `if (...) {` moves below
+`=` without reindenting the body. Set `bicepFlex.bicepConditionalHeader` to
+`"inline"` for the previous placement, `"auto"` for width-based header placement
+without compacting the condition, `"next-line"` to always move it, or
+`"preserve"` to retain authored placement. Conditional loops are unaffected.
+Comments and multiline literals that prevent safe compaction take precedence.
+Long `@description(...)` decorators
 are exempt from the width target. Strings and ordinary comments are not reflowed;
-trailing comments stay inline. Unnecessary quotes on identifier property names
+trailing comments stay inline. Extra same-line whitespace between syntax tokens
+is reduced to one space without changing indentation, strings, comments, or
+ignored declarations. Unnecessary quotes on identifier property names
 and parentheses around a single lambda parameter are removed.
 
-Object-producing loops keep `[for ...: {` or `[for ...: if (...) {` on the
-declaration line when the complete header fits `printWidth`, indent the body once,
-and close with `}]`. Longer headers retain the expanded bracket layout. Comments
-at the bracket boundaries are preserved rather than moved to force compaction.
+Object-producing loops keep `[for ...: {` on the declaration line when the
+complete header fits `printWidth`. Conditional loops keep
+`[for ...: if (...) {` inline even beyond that width by default; set
+`bicepIfConditionLayout: "wrap"` to use the width target. Both forms indent the
+body once and close with `}]`. `bicepLoopLayout: "expanded"` retains expanded
+brackets. Comments at bracket boundaries and inside calls are preserved rather
+than moved to force compaction.
+Call-expression loops also collapse to one line when the entire expression
+fits; object arguments in those loops become compact without padding inside
+their braces (for example, `union(props, {slots: slots})`). Fitting calls
+inside property values follow the same rule, including property access after
+the call (`union({hyperV: false}, plan.properties).hyperV`). Fitting ternaries
+in object properties collapse their object branches as well (for example,
+`apiDefinition: enabled ? {url: endpoint} : null`). Other inline
+objects retain native brace spacing. Set
+`bicepLoopLayout: "expanded"` to retain expanded brackets or
+`bicepObjectLayout: "preserve"` to retain an expanded object argument.
+Arrays of one or two small objects also stay on one line when the complete
+line fits the width target, including arrays inside multiline calls
+(`[{code: first.code}]`). Each object has at most two properties; comments and
+multiline literals prevent compaction. Use `bicepArrayLayout: "multiline"` to
+expand the array, or the `"preserve"` choices for arrays and objects to retain
+their authored shape.
+
+Applicable layout and placement settings also offer `"preserve"`: authored
+compact/expanded objects and arrays, individual union breaks, description and
+condition-call line breaks, conditional `if` placement, loop brackets, parameter
+spacing, and dependency-safe positions of variables and outputs. Layout
+`"preserve"` can exceed `printWidth`; comments, directives, multiline literals,
+dependencies, and the syntax/diagnostic safety checks take precedence.
+For ordering controls expressed as booleans, use `bicepSortDeclarations: false`,
+`bicepSortProperties: false`, or `bicepSortDecorators: false` instead of a
+redundant `"preserve"` value. See [CONFIGURATION.md](CONFIGURATION.md) for
+individual settings and interactions.
 
 ### Line endings and multiline strings
 
@@ -156,7 +217,7 @@ are therefore distinguished.
 Resource-body property priority:
 
 ```text
-name, parent, scope, dependsOn, location, tags, identity, kind, sku,
+name, parent, scope, location, dependsOn, tags, identity, kind, sku,
 zones, plan, [unlisted properties], properties
 ```
 
@@ -286,8 +347,9 @@ npm run test:coverage
 
 `npm run test:coverage` instruments the TypeScript formatter, the extension
 inside a real VS Code host, and the managed bridge, then prints separate line
-and branch totals. CI uploads the source-level summaries and native Cobertura
-report. `npm run test:coverage:enforce` requires 100% of both metrics in all
+and branch totals. CI shows the totals in the Actions run summary and uploads
+the source-level summaries and native Cobertura report as the
+`production-coverage` artifact. `npm run test:coverage:enforce` requires 100% of both metrics in all
 three components; the suite does not yet meet that target. Coverage is a
 measurement of exercised paths, not a guarantee of correct formatting for
 every Bicep input.
@@ -300,10 +362,12 @@ The runner records idempotence and expected syntax-error refusals in
 
 ## Publishing
 
-Contribute through a branch and pull request into `main`. Once merged and
-verified, pushing a version-matching tag runs CI again and attaches the
-tested VSIX to a GitHub Release. Marketplace publication is a separate manual
-workflow requiring publisher credentials. See [RELEASING.md](RELEASING.md).
+External pull requests are not accepted for now; please report bugs through
+Issues. Collaborators develop on branches and submit pull requests into
+`main`. Once merged and verified, pushing a version-matching tag runs CI again
+and attaches the tested VSIX to a GitHub Release. Marketplace publication is a
+separate manual workflow requiring publisher credentials. See
+[RELEASING.md](RELEASING.md).
 
 MIT licensed. Dependency notices ship in `THIRD-PARTY-NOTICES` and the generated
 bridge license inventory. This project is not affiliated with or endorsed by

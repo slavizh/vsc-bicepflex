@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import {
+  appendFileSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -155,6 +156,30 @@ writeFileSync(
   join(artifacts, "summary.json"),
   JSON.stringify({ engine, host, native }, null, 2) + "\n",
 );
+if (process.env.GITHUB_STEP_SUMMARY) {
+  const percent = ({ covered, total }) =>
+    `${covered}/${total} (${total ? ((covered / total) * 100).toFixed(2) : "n/a"}%)`;
+  appendFileSync(
+    process.env.GITHUB_STEP_SUMMARY,
+    [
+      "## Production source coverage",
+      "",
+      "| Component | Lines | Branches |",
+      "| --- | ---: | ---: |",
+      ...[
+        ["Formatter TypeScript", engine],
+        ["VS Code extension", host],
+        [".NET bridge", native],
+      ].map(
+        ([name, totals]) =>
+          `| ${name} | ${percent(totals.lines)} | ${percent(totals.branches)} |`,
+      ),
+      "",
+      "The 100% line and branch target is not yet met. Download the `production-coverage` artifact for detailed reports.",
+      "",
+    ].join("\n"),
+  );
+}
 const complete = [
   report("Formatter TypeScript", engine),
   report("VS Code extension", host),

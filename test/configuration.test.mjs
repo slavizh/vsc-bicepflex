@@ -173,7 +173,7 @@ test("VS Code settings and offline schema cover the same Bicep options", async (
   );
   assert.match(
     contributed["bicepFlex.bicepConditionalHeader"].description,
-    /Default: "inline"/,
+    /Default: "compact"/,
   );
   assert.deepEqual(
     Object.keys(contributed)
