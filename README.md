@@ -362,10 +362,12 @@ The runner records idempotence and expected syntax-error refusals in
 
 ## Publishing
 
-Contribute through a branch and pull request into `main`. Once merged and
-verified, pushing a version-matching tag runs CI again and attaches the
-tested VSIX to a GitHub Release. Marketplace publication is a separate manual
-workflow requiring publisher credentials. See [RELEASING.md](RELEASING.md).
+External pull requests are not accepted for now; please report bugs through
+Issues. Collaborators develop on branches and submit pull requests into
+`main`. Once merged and verified, pushing a version-matching tag runs CI again
+and attaches the tested VSIX to a GitHub Release. Marketplace publication is a
+separate manual workflow requiring publisher credentials. See
+[RELEASING.md](RELEASING.md).
 
 MIT licensed. Dependency notices ship in `THIRD-PARTY-NOTICES` and the generated
 bridge license inventory. This project is not affiliated with or endorsed by
