@@ -2,6 +2,8 @@
 
 ## 0.3.0 (unreleased)
 
+- Bump the JavaScript/native bridge protocol together for the new managed
+  option fields and defaults, refusing stale mixed-version formatter builds.
 - Respect wrapped and source-preserved nested logical calls when an enclosing
   conditional call or compact expression would otherwise flatten them.
 - Use the `cloudadministrator` Marketplace publisher. Existing
