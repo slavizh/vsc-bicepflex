@@ -2,6 +2,8 @@
 
 ## 0.2.1 (unreleased)
 
+- Keep fitting arrays of one or two small objects compact, including within
+  multiline calls; honor width, comments, literals, and explicit layout choices.
 - Keep direct resource/module `if` conditions on one line and move long
   complete headers below `=` by default via `bicepConditionalHeader: "compact"`;
   retain the former `"inline"` behavior and existing `"auto"`, `"next-line"`,

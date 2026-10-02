@@ -130,6 +130,16 @@ test("compact call-expression loops use tight braces in parameter files", async 
   assert.equal(await format(expected, options), expected);
 });
 
+test("small object arrays also compact in Bicep parameter files", async () => {
+  const options = { plugins: [plugin], parser: "bicepparam" };
+  const source =
+    "using './main.bicep'\nvar entries = [{code: 'alpha'}, {code: 'beta'}]\n";
+  const expected =
+    "using './main.bicep'\n\nvar entries = [{code: 'alpha'}, {code: 'beta'}]\n";
+  assert.equal(await format(source, options), expected);
+  assert.equal(await format(expected, options), expected);
+});
+
 test("fitting ternary properties compact in Bicep parameter files", async () => {
   const options = { plugins: [plugin], parser: "bicepparam" };
   const source =

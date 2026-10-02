@@ -107,6 +107,16 @@ async function run() {
     extensionSource.replace("  as ", " as "),
   );
   await fs.writeFile(
+    path.join(folder.uri.fsPath, "compact-objects.bicep"),
+    "var result={entries:union([{code: first.id}],map(others,item=>{code:item.code}))}\n",
+  );
+  const compactObjects = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "compact-objects.bicep"),
+  );
+  await vscode.window.showTextDocument(compactObjects);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.match(compactObjects.getText(), /\[\{code: first\.id\}\]/);
+  await fs.writeFile(
     path.join(folder.uri.fsPath, "ternary-object.bicep"),
     "param enabled bool\nvar result = enabled ? {name:'first'} : {name:'other'}\n",
   );

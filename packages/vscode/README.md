@@ -25,6 +25,9 @@ dedenting neighboring object properties.
 Wrapped lambda bodies align with their `=>` header, including nested lambdas
 inside multiline calls.
 Calls under `&&`/`||` stay inline by default in any expression, even beyond width.
+Arrays of one or two small objects stay compact when the line fits, including
+inside multiline calls; comments and preserve/multiline layout choices take
+precedence.
 Calls in `if` conditions and conditional loop headers remain inline by default;
 set `bicepFlex.bicepIfConditionLayout` to `"wrap"` for width-based wrapping.
 Direct resource/module `if` conditions stay on one line by default; when the

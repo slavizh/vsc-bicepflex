@@ -133,6 +133,7 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         formatted = NormalizeTernaryIndentation(formatted, ignored.Keys.ToHashSet());
         formatted = ApplyHeaderPolicies(formatted, ignored.Keys.ToHashSet());
         formatted = CompactTernaryObjectProperties(formatted, ignored.Keys.ToHashSet());
+        formatted = CompactObjectArrays(formatted, ignored.Keys.ToHashSet());
         formatted = CompactObjectArgumentCalls(formatted, ignored.Keys.ToHashSet());
         if (options.BicepLoopLayout != "expanded")
         {
@@ -853,9 +854,9 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
         return TextEdit.Apply(expression, changes);
     }
 
-    private string? RenderCompactExpression(SyntaxBase expression)
+    private string? RenderCompactExpression(SyntaxBase expression, bool allowPreservedCompactObjects = false)
     {
-        var body = options.BicepObjectLayout == "preserve"
+        var body = options.BicepObjectLayout == "preserve" && !allowPreservedCompactObjects
             ? expression
             : new InlineObjectArguments().Rewrite(expression);
         var inline = PrettyPrinterV2.PrintValid(body, options.Printer with
@@ -864,6 +865,44 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             InsertFinalNewline = false,
         }).TrimEnd('\r', '\n');
         return inline.Contains('\n') ? null : RemoveInlineObjectBracePadding(inline);
+    }
+
+    private string CompactObjectArrays(string source, HashSet<string> ignored)
+    {
+        if (options.BicepArrayLayout == "multiline") return source;
+        var tree = new SyntaxTree(Parse(source).ProgramSyntax);
+        var protectedSpans = ProtectedSpans(tree, ignored);
+        var changes = new List<TextEdit>();
+        foreach (var array in tree.Nodes.OfType<ArraySyntax>())
+        {
+            var items = array.Items.ToArray();
+            if (items.Length is < 1 or > 2 ||
+                items.Any(item => item.Value is not ObjectSyntax) ||
+                tree.Nodes.OfType<ObjectSyntax>().Where(obj => obj.Span.Position >= array.Span.Position &&
+                    obj.Span.GetEndPosition() <= array.Span.GetEndPosition())
+                    .Any(obj => obj.Properties.Count() is < 1 or > 2 ||
+                        options.BicepObjectLayout == "preserve" &&
+                        (Original(tree, obj) is not { } authoredObject || authoredObject.Contains('\n'))) ||
+                options.BicepArrayLayout == "preserve" &&
+                (Original(tree, array) is not { } authoredArray || authoredArray.Contains('\n')) ||
+                SyntaxTree.HasComments(array) ||
+                protectedSpans.Any(span => span.Position < array.Span.GetEndPosition() &&
+                    span.GetEndPosition() > array.Span.Position) ||
+                changes.Any(edit => edit.Start <= array.Span.Position &&
+                    edit.Start + edit.Length >= array.Span.GetEndPosition())) continue;
+            var values = items.Select(item => RenderCompactExpression(item.Value, true)).ToArray();
+            if (values.Any(value => value is null)) continue;
+            var inline = "[" + string.Join(", ", values) + "]";
+            var lineStart = source.LastIndexOf('\n', array.Span.Position) + 1;
+            var lineEnd = source.IndexOf('\n', array.Span.GetEndPosition());
+            if (lineEnd < 0) lineEnd = source.Length;
+            var line = source[lineStart..array.Span.Position] + inline +
+                source[array.Span.GetEndPosition()..lineEnd];
+            if (options.BicepArrayLayout != "preserve" &&
+                line.Replace("\t", new string(' ', options.TabWidth)).Length > options.PrintWidth) continue;
+            changes.Add(new(array.Span.Position, array.Span.Length, inline));
+        }
+        return TextEdit.Apply(source, changes);
     }
 
     private string CompactTernaryObjectProperties(string source, HashSet<string> ignored)

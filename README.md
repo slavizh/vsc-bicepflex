@@ -147,6 +147,12 @@ in object properties collapse their object branches as well (for example,
 objects retain native brace spacing. Set
 `bicepLoopLayout: "expanded"` to retain expanded brackets or
 `bicepObjectLayout: "preserve"` to retain an expanded object argument.
+Arrays of one or two small objects also stay on one line when the complete
+line fits the width target, including arrays inside multiline calls
+(`[{code: first.code}]`). Each object has at most two properties; comments and
+multiline literals prevent compaction. Use `bicepArrayLayout: "multiline"` to
+expand the array, or the `"preserve"` choices for arrays and objects to retain
+their authored shape.
 
 Applicable layout and placement settings also offer `"preserve"`: authored
 compact/expanded objects and arrays, individual union breaks, description and

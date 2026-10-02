@@ -1128,6 +1128,90 @@ test("fitting call-expression loops collapse their object argument and array bra
   assert.match(await stable(multilineLiteral), / = \[\n  for \(widget, i\)/);
 });
 
+test("small arrays of objects stay compact inside multiline calls when they fit", async () => {
+  const source =
+    "var summary = {\n" +
+    "  records: union(\n" +
+    "    [{code: primary.code}],\n" +
+    "    map(secondary.items, item => {\n" +
+    "      code: format('{0}/{1}/{2}', item.group, item.name, item.region)\n" +
+    "    })\n" +
+    "  )\n" +
+    "}\n";
+  assert.equal(await stable(source), source);
+  const pair = "var entries = [{code: first.id}, {code: second.id}]\n";
+  assert.equal(await stable(pair), pair);
+  assert.equal(
+    await stable("var entries = [{code: first.id}\n{code: second.id}]\n"),
+    pair,
+  );
+  assert.equal(await stable(pair, { printWidth: pair.trimEnd().length }), pair);
+  assert.match(
+    await stable(pair, { printWidth: pair.trimEnd().length - 1 }),
+    /var entries = \[\n/,
+  );
+  assert.equal(
+    await stable("var entries = [{code: first.id, enabled: true}]\n"),
+    "var entries = [{code: first.id, enabled: true}]\n",
+  );
+  assert.equal(
+    await stable("var result = {entries: [{code: first.id}]}\n"),
+    "var result = {\n  entries: [{code: first.id}]\n}\n",
+  );
+  assert.equal(
+    await stable("var entries = [{code: first.id, meta: {region: name}}]\n"),
+    "var entries = [{code: first.id, meta: {region: name}}]\n",
+  );
+  assert.match(
+    await stable(
+      "var entries = [{code: first.id, enabled: true, region: name}]\n",
+    ),
+    /var entries = \[\n/,
+  );
+  assert.match(
+    await stable(
+      "var entries = [{code: first.id, meta: {one: 1, two: 2, three: 3}}]\n",
+    ),
+    /var entries = \[\n/,
+  );
+  assert.match(
+    await stable(pair, { bicepArrayLayout: "multiline" }),
+    /var entries = \[\n/,
+  );
+  assert.match(
+    await stable("var entries = [\n  {code: first.id}\n]\n", {
+      bicepArrayLayout: "preserve",
+    }),
+    /var entries = \[\n/,
+  );
+  assert.equal(
+    await stable(pair, { bicepArrayLayout: "preserve", printWidth: 12 }),
+    pair,
+  );
+  assert.match(
+    await stable("var entries = [{\n  code: first.id\n}]\n", {
+      bicepObjectLayout: "preserve",
+    }),
+    /var entries = \[\n/,
+  );
+  assert.equal(await stable(pair, { bicepObjectLayout: "preserve" }), pair);
+  assert.match(
+    await stable(
+      "var entries = [{code: first.id, meta: {\n  region: name\n}}]\n",
+      { bicepObjectLayout: "preserve" },
+    ),
+    /var entries = \[\n/,
+  );
+  const commented = "var entries = [{code: first.id // keep\n}]\n";
+  assert.match(await stable(commented), /\/\/ keep/);
+  assert.match(await stable(commented), /var entries = \[\n/);
+  assert.match(
+    await stable("var entries = [{code: '''\n  keep indentation\n'''}]\n"),
+    /var entries = \[\n/,
+  );
+  assert.equal(await stable(pair, { useTabs: true, tabWidth: 4 }), pair);
+});
+
 test("fitting property-value calls collapse object arguments without brace padding", async () => {
   const source =
     "output plan object = {\n" +

@@ -286,7 +286,7 @@ When a `for` expression's ternary body has a wrapped condition, its `?` and
 | Option                    | Default         | Values and behavior                                                                                                                                                                                                                                                 |
 | ------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bicepObjectLayout`       | `"multiline"`   | `"multiline"` expands nonempty objects/types except safe object arguments in fitting calls; `"auto"` permits compact source objects; `"preserve"` retains authored shape even beyond width when safe                                                                |
-| `bicepArrayLayout`        | `"compact"`     | `"compact"` fits primitive arrays inline; `"multiline"` expands them; `"preserve"` retains authored compact/expanded shape even beyond width when safe                                                                                                              |
+| `bicepArrayLayout`        | `"compact"`     | `"compact"` fits primitive arrays and arrays of one or two small objects inline when the line fits; `"multiline"` expands them; `"preserve"` retains authored shape even beyond width when safe                                                                     |
 | `bicepDeclarationSpacing` | `"separate"`    | `"separate"` inserts one blank line between declarations; `"compact"` removes it; `"preserve"` retains author spacing subject to Bicep's collapse of repeated blank lines; parameter/import spacing can override it                                                 |
 | `bicepParameterSpacing`   | `"description"` | `"description"` groups plain parameters and separates described ones; `"inherit"` follows `bicepDeclarationSpacing`; `"preserve"` retains author gaps between consecutive parameters                                                                                |
 | `bicepImportSpacing`      | `"compact"`     | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                                                                                                        |
@@ -322,6 +322,11 @@ collapse object arguments, including calls followed by property access.
 These inline object arguments have no padding inside braces (`{slots: slots}`);
 fitting ternaries in object properties likewise compact object branches
 without padding (`apiDefinition: enabled ? {url: endpoint} : null`).
+Arrays of one or two objects with at most two properties each also use tight
+braces (`[{code: first.code}]`) when the entire line fits. This applies inside
+multiline calls and object properties, but not when comments or multiline
+literals require expansion. Explicit multiline array layout and source-preserving
+object/array layout take precedence.
 Other inline objects retain native spacing.
 Comments, directives, multiline literals, and
 `bicepObjectLayout: "preserve"` prevent collapsing an expanded object argument.
