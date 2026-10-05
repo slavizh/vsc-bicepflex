@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -85,3 +84,77 @@ jobs:
             artifacts/coverage/engine/coverage-summary.json
             artifacts/coverage/host/coverage-summary.json
           if-no-files-found: warn
+
+  prepare-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Select changed extension version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+          $previous = (git show 'HEAD^:packages/vscode/package.json' | Out-String | ConvertFrom-Json).version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($version -ceq $previous) {
+            Write-Host 'Extension version is unchanged; no release is needed.'
+            exit 0
+          }
+          if ($version -cnotmatch '^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$') {
+            throw "Unsupported Marketplace release version: $version"
+          }
+          $tag = "v$version"
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" | Out-Null
+          if ($LASTEXITCODE -eq 0) { throw "Tag $tag already exists; never reuse a released version." }
+          if ($LASTEXITCODE -ne 2) { throw "Could not check whether tag $tag already exists." }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
+  github-release:
+    if: needs.prepare-release.outputs.tag != ''
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: marketplace-package
+          path: artifacts/marketplace
+      - name: Create GitHub Release with tested VSIX
+        id: publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          $version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -cne "v$version") { throw 'Release tag must match the verified extension version.' }
+          $packages = @(Get-ChildItem artifacts/marketplace -Filter *.vsix -File)
+          if ($packages.Count -ne 1 -or $packages[0].Name -cne "bicepflex-$version.vsix") {
+            throw "Expected exactly one tested bicepflex-$version.vsix."
+          }
+          git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_TAG" | Out-Null
+          if ($LASTEXITCODE -eq 0) { throw "Tag $env:RELEASE_TAG already exists; never reuse a released version." }
+          if ($LASTEXITCODE -ne 2) { throw "Could not check whether tag $env:RELEASE_TAG already exists." }
+          gh release create $env:RELEASE_TAG $packages[0].FullName --title "BicepFlex $version" --target $env:GITHUB_SHA --generate-notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "tag=$env:RELEASE_TAG" >> $env:GITHUB_OUTPUT
+
+  marketplace:
+    if: needs.github-release.result == 'success'
+    needs: github-release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.github-release.outputs.tag }}
