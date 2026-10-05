@@ -1,11 +1,15 @@
 # Release checklist
 
 1. Verify ownership of the `cloudadministrator` Visual Studio Marketplace publisher. Review
-   the VSIX manifest, Bicep version, formatting rules, and all redistributed
-   dependency licenses. Do not imply Microsoft or Prettier endorsement.
+   the VSIX manifest, bundled PNG icon, Marketplace listing, Bicep version,
+   formatting rules, and all redistributed dependency licenses. Do not imply
+   Microsoft or Prettier endorsement.
 2. Update the version only in `packages/vscode/package.json` (for example,
-   `npm version minor --workspace=bicepflex --no-git-tag-version`), and commit
-   the generated `package-lock.json` change. Update the changelog. Keep
+   `npm version patch --workspace=bicepflex --no-git-tag-version`), and commit
+   the generated `package-lock.json` change. Changes to the icon or other
+   Marketplace metadata also require a new version; never replace a published
+   VSIX. Update the changelog for that version; the extension build copies it
+   into the Marketplace package. Keep
    `dist/extension.mjs` and `dist/bridge` from the same build. If the bridge
    contract changes, increment
    the protocol version in `src/bridge.ts` and `native/Bicep.Formatter/Program.cs`
@@ -58,9 +62,10 @@ It then also checks that the language server diagnoses invalid Bicep while
 formatted valid Bicep and Bicep parameters files have no errors.
 
 Inspect `npm run package:list --workspace=bicepflex`. The VSIX
-must contain the Prettier bundle, managed bridge, configuration schema, notices
-and license texts. It must not contain source checkout files, test workspaces,
-credentials, host logs or downloaded corpora. The .NET 10 runtime is not included.
+must contain its PNG icon, README, changelog, Prettier bundle, managed bridge,
+configuration schema, notices and license texts. It must not contain source
+checkout files, test workspaces, credentials, host logs or downloaded corpora.
+The .NET 10 runtime and source artwork are not included.
 
 Install the VSIX in a clean profile and check both Bicep file types, the default
 formatter, optional project overrides, format-on-save, and missing .NET diagnostics.
