@@ -94,13 +94,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Select changed extension version
         id: version
         shell: pwsh
         run: |
           $version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
-          $previous = (git show 'HEAD^:packages/vscode/package.json' | Out-String | ConvertFrom-Json).version
+          $previous = (git show '${{ github.event.before }}:packages/vscode/package.json' | Out-String | ConvertFrom-Json).version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($version -ceq $previous) {
             Write-Host 'Extension version is unchanged; no release is needed.'
