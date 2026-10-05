@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.3.0 (unreleased)
+## Unreleased
+
+- Create the version tag and GitHub Release from the successful merged-`main`
+  CI run when the extension version changes, reusing that run's tested VSIX.
+- Start Marketplace publishing after the GitHub Release with separate approval,
+  verifying and reusing its asset instead of rerunning CI. Keep a manual
+  Marketplace path for previously created releases and failed publishes.
+
+## 0.3.0 (2026-10-05)
 
 - Bump the JavaScript/native bridge protocol together for the new managed
   option fields and defaults, refusing stale mixed-version formatter builds.

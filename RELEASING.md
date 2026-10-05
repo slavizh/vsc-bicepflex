@@ -16,8 +16,8 @@
    Linux, Windows, and macOS CI before merging. Linux CI additionally runs
    coverage measurement, the official corpus, and a real VS Code host test
    against the packaged VSIX.
-4. Use the protected GitHub `release` environment, restricted to `v*` tags
-   and requiring approval by the repository owner. Store `VSCE_PAT` as an
+4. Use the protected GitHub `release` environment, restricted to `main` and
+   `v*` tags and requiring approval by the repository owner. Store `VSCE_PAT` as an
    environment secret only if publishing to the Marketplace. Rotate the
    credential before it expires; global Azure DevOps PATs stop working on
    December 1, 2026.
@@ -69,24 +69,21 @@ For WSL/SSH/containers, the runtime is required on the remote extension host.
 
 ## Publish
 
-After the pull request merges and CI on `main` succeeds, create a tag
-`v<extension-version>` on that commit and push it. The **GitHub Release** workflow rejects tags
-that do not match `packages/vscode/package.json` or do not point to a commit
-on `main`. It reruns CI on the tagged commit, then creates a GitHub Release
-with **the VSIX that passed the packaged-host test** attached as an asset.
-The `release` environment can require approval before publication. Do not
-move a published tag or reuse an extension version.
+After a version-changing pull request merges, successful CI on `main` detects
+the version change, verifies that `v<extension-version>` is not already used,
+and waits for approval in the `release` environment. It then creates the
+version tag on that tested `main` commit and attaches **the VSIX from the same
+CI run that passed the packaged-host test** to a GitHub Release. An unchanged
+version, a failed check, or a manual CI run does not create a release. Do not
+move a published tag or reuse an extension version. Release automation
+currently supports stable `major.minor.patch` versions.
 
-To publish the same version to the Visual Studio Marketplace, run the
-manual **Marketplace** workflow against the released **tag**, not `main`.
-It checks that a GitHub Release already exists, reruns CI for the tag, and
-publishes its verified VSIX using the `VSCE_PAT` secret. For a manual upload
-with Marketplace credentials already configured:
-
-```powershell
-$version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
-npm exec --workspace=bicepflex -- vsce publish --packagePath "packages/vscode/bicepflex-$version.vsix"
-```
-
-Confirm the published version on the Marketplace. Never attempt to republish
-an existing extension version.
+After the GitHub Release succeeds, the **Marketplace** job starts automatically
+and waits for separate `release` environment approval. It downloads the
+published Release asset, verifies its SHA-256 digest, and publishes that exact
+VSIX using `VSCE_PAT`. It does not rerun CI. If Marketplace publication fails,
+fix the cause and manually run the **Marketplace** workflow on `main`, supplying
+the published release tag (for example, `v0.3.0`). This manual path is also
+needed for releases made before automatic publication was introduced. Do not
+attempt to republish an existing extension version. Confirm the published
+version on the Marketplace.

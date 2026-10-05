@@ -364,9 +364,10 @@ The runner records idempotence and expected syntax-error refusals in
 
 External pull requests are not accepted for now; please report bugs through
 Issues. Collaborators develop on branches and submit pull requests into
-`main`. Once merged and verified, pushing a version-matching tag runs CI again
-and attaches the tested VSIX to a GitHub Release. Marketplace publication is a
-separate manual workflow requiring publisher credentials. See
+`main`. After a version bump passes merged-`main` CI, owner approval creates
+the matching tag and a GitHub Release with that run's tested VSIX. Marketplace
+publication then starts automatically, using the Release asset after separate
+owner approval; a manual retry is available. See
 [RELEASING.md](RELEASING.md).
 
 MIT licensed. Dependency notices ship in `THIRD-PARTY-NOTICES` and the generated
