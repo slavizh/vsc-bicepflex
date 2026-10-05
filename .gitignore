@@ -4,5 +4,6 @@ artifacts/
 bin/
 obj/
 *.vsix
+packages/vscode/CHANGELOG.md
 .DS_Store
 TestResults/

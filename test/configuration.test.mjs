@@ -191,6 +191,50 @@ test("VS Code settings and offline schema cover the same Bicep options", async (
   assert.equal(manifest.extensionDependencies, undefined);
 });
 
+test("Marketplace listing has a packaged, high-resolution PNG icon and useful metadata", async () => {
+  const manifest = JSON.parse(
+    await readFile(
+      new URL("../packages/vscode/package.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const icon = await readFile(
+    new URL(`../packages/vscode/${manifest.icon}`, import.meta.url),
+  );
+  assert.equal(icon.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(icon.readUInt32BE(16), 256);
+  assert.equal(icon.readUInt32BE(20), 256);
+  assert.match(manifest.galleryBanner.color, /^#[0-9a-f]{6}$/i);
+  assert.equal(manifest.galleryBanner.theme, "dark");
+  assert.ok(manifest.displayName && manifest.description);
+  assert.ok(manifest.categories.includes("Formatters"));
+  assert.ok(manifest.publisher && manifest.license);
+  for (const url of [
+    manifest.repository.url,
+    manifest.homepage,
+    manifest.bugs.url,
+  ]) {
+    assert.match(url, /^https:\/\/github\.com\/slavizh\/vsc-bicepflex/);
+  }
+  const readme = await readFile(
+    new URL("../packages/vscode/README.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(readme, /Get started/);
+  assert.match(readme, /Requirements and limitations/);
+  assert.match(readme, /configuration reference/);
+  assert.match(readme, /Report a problem/);
+  const [changelog, packagedChangelog] = await Promise.all([
+    readFile(new URL("../CHANGELOG.md", import.meta.url), "utf8"),
+    readFile(
+      new URL("../packages/vscode/CHANGELOG.md", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  assert.equal(packagedChangelog, changelog);
+  assert.ok(changelog.includes(`## ${manifest.version} (`));
+});
+
 test("published guides describe the initial 0.2.0 settings", async () => {
   for (const path of [
     "README.md",

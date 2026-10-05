@@ -28,6 +28,10 @@ await cp(
   resolve(root, "THIRD-PARTY-NOTICES"),
   resolve(root, "packages", "vscode", "THIRD-PARTY-NOTICES"),
 );
+await cp(
+  resolve(root, "CHANGELOG.md"),
+  resolve(root, "packages", "vscode", "CHANGELOG.md"),
+);
 await mkdir(resolve(root, "packages", "vscode", "licenses"), {
   recursive: true,
 });
