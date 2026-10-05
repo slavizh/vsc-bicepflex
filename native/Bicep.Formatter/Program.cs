@@ -7,7 +7,7 @@ using Bicep.IO.Abstraction;
 Console.InputEncoding = new System.Text.UTF8Encoding(false);
 Console.OutputEncoding = new System.Text.UTF8Encoding(false);
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-const int protocolVersion = 1;
+const int protocolVersion = 2;
 var compiler = BicepCompiler.Create();
 while (await Console.In.ReadLineAsync() is { } line)
 {

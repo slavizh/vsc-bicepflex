@@ -1,6 +1,6 @@
 {
   "name": "bicepflex-host-tests",
-  "publisher": "slavizh",
+  "publisher": "cloudadministrator",
   "version": "0.0.0",
   "engines": {
     "vscode": "^1.125.0"

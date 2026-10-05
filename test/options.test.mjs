@@ -181,7 +181,18 @@ test("union layout can force short unions onto separate lines, including nested 
 test("conditional headers support inline, width-aware and always-next-line layouts", async () => {
   const source =
     "param deploy bool=true\nresource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'=if(deploy){name:'identity',location:'westeurope'}\n";
-  assert.match(await stable(source), / = if \(deploy\) \{\n  name:/);
+  assert.match(
+    await stable(source, { printWidth: 180 }),
+    / = if \(deploy\) \{\n  name:/,
+  );
+  assert.match(
+    await stable(source, { printWidth: 60 }),
+    / =\n  if \(deploy\) \{\n  name:/,
+  );
+  assert.match(
+    await stable(source, { bicepConditionalHeader: "inline", printWidth: 60 }),
+    / = if \(deploy\) \{\n  name:/,
+  );
   assert.match(
     await stable(source, { bicepConditionalHeader: "next-line" }),
     / =\n  if \(deploy\) \{\n    name:/,
