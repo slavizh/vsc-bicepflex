@@ -201,9 +201,16 @@ test("Marketplace listing has a packaged, high-resolution PNG icon and useful me
   const icon = await readFile(
     new URL(`../packages/vscode/${manifest.icon}`, import.meta.url),
   );
+  const source = await readFile(
+    new URL("../artwork/bicepflex-icon-source.png", import.meta.url),
+  );
   assert.equal(icon.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   assert.equal(icon.readUInt32BE(16), 256);
   assert.equal(icon.readUInt32BE(20), 256);
+  assert.equal(icon[25], 6);
+  assert.equal(source.readUInt32BE(16), 592);
+  assert.equal(source.readUInt32BE(20), 592);
+  assert.equal(source[25], 6);
   assert.match(manifest.galleryBanner.color, /^#[0-9a-f]{6}$/i);
   assert.equal(manifest.galleryBanner.theme, "dark");
   assert.ok(manifest.displayName && manifest.description);

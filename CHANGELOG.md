@@ -2,9 +2,9 @@
 
 ## 0.3.1 (2026-10-05)
 
-- Add a BicepFlex icon based on the supplied flexed-arm artwork and a matching
-  Marketplace banner, and clarify the extension listing and getting-started
-  guidance. Include release notes in the published VSIX.
+- Add a BicepFlex icon from the supplied high-resolution flexed-arm artwork
+  and a matching Marketplace banner. Clarify the extension listing and
+  getting-started guidance, and include release notes in the published VSIX.
 - Create the version tag and GitHub Release from the successful merged-`main`
   CI run when the extension version changes, reusing that run's tested VSIX.
 - Start Marketplace publishing after the GitHub Release with separate approval,
