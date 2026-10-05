@@ -65,7 +65,7 @@ Inspect `npm run package:list --workspace=bicepflex`. The VSIX
 must contain its PNG icon, README, changelog, Prettier bundle, managed bridge,
 configuration schema, notices and license texts. It must not contain source
 checkout files, test workspaces, credentials, host logs or downloaded corpora.
-The .NET 10 runtime and editable vector artwork are not included.
+The .NET 10 runtime and source artwork are not included.
 
 Install the VSIX in a clean profile and check both Bicep file types, the default
 formatter, optional project overrides, format-on-save, and missing .NET diagnostics.

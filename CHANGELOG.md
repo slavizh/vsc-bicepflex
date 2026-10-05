@@ -2,7 +2,7 @@
 
 ## 0.3.1 (2026-10-05)
 
-- Add an original BicepFlex icon with a flexed-arm motif and matching
+- Add a BicepFlex icon based on the supplied flexed-arm artwork and a matching
   Marketplace banner, and clarify the extension listing and getting-started
   guidance. Include release notes in the published VSIX.
 - Create the version tag and GitHub Release from the successful merged-`main`
