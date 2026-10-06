@@ -79,9 +79,17 @@ the version change, verifies that `v<extension-version>` is not already used,
 and waits for approval in the `release` environment. It then creates the
 version tag on that tested `main` commit and attaches **the VSIX from the same
 CI run that passed the packaged-host test** to a GitHub Release. An unchanged
-version, a failed check, or a manual CI run does not create a release. Do not
-move a published tag or reuse an extension version. Release automation
-currently supports stable `major.minor.patch` versions.
+version, a failed check, or a manual CI run without an explicit
+`release_version` does not create a release. Do not move a published tag or
+reuse an extension version. Release automation currently supports stable
+`major.minor.patch` versions.
+
+If `prepare-release` fails after the CI checks pass but before a tag is
+created, fix the workflow on `main`, then manually run **CI** on `main` with
+`release_version` set to the still-unreleased extension version (for example,
+`0.3.1`). The manual recovery reruns CI before requesting the same two release
+approvals; a manual CI run with an empty `release_version` only runs checks.
+Do not use recovery after a version tag has been created.
 
 After the GitHub Release succeeds, the **Marketplace** job starts automatically
 and waits for separate `release` environment approval. It downloads the
