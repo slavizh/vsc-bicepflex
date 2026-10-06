@@ -92,11 +92,13 @@ approvals; a manual CI run with an empty `release_version` only runs checks.
 Do not use recovery after a version tag has been created.
 
 After the GitHub Release succeeds, the **Marketplace** job starts automatically
-and waits for separate `release` environment approval. It downloads the
-published Release asset, verifies its SHA-256 digest, and publishes that exact
-VSIX using `VSCE_PAT`. It does not rerun CI. If Marketplace publication fails,
-fix the cause and manually run the **Marketplace** workflow on `main`, supplying
-the published release tag (for example, `v0.3.0`). This manual path is also
-needed for releases made before automatic publication was introduced. Do not
-attempt to republish an existing extension version. Confirm the published
-version on the Marketplace.
+and waits for separate `release` environment approval. This job runs directly
+in CI so that the protected environment supplies its `VSCE_PAT` secret;
+environment secrets are not available to this repository's reusable-workflow
+call. It downloads the published Release asset, verifies its SHA-256 digest,
+and publishes that exact VSIX without rerunning CI. If Marketplace publication
+fails, fix the cause and manually run the **Marketplace** workflow on `main`,
+supplying the published release tag (for example, `v0.3.1`). This manual path
+is also needed for releases made before automatic publication was introduced.
+Do not attempt to republish an existing extension version. Confirm the
+published version on the Marketplace.

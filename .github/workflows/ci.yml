@@ -170,8 +170,59 @@ jobs:
   marketplace:
     if: needs.github-release.result == 'success'
     needs: github-release
+    runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: read
-    uses: ./.github/workflows/release.yml
-    with:
-      tag: ${{ needs.github-release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.github-release.outputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: Verify and download the published VSIX
+        id: asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.github-release.outputs.tag }}
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$') {
+            throw 'Specify a stable version tag such as v0.3.0.'
+          }
+          $version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_TAG -cne "v$version") { throw 'The tag does not match the extension version.' }
+          git fetch --no-tags origin main
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'Release tag must point to a commit on main.' }
+          $release = gh release view $env:RELEASE_TAG --json tagName,isDraft,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'The GitHub Release is missing or cannot be read.' }
+          if ($release.tagName -cne $env:RELEASE_TAG -or $release.isDraft) {
+            throw 'A published GitHub Release for this tag is required.'
+          }
+          $expected = "bicepflex-$version.vsix"
+          $assets = @($release.assets | Where-Object { $_.name -ceq $expected })
+          if ($assets.Count -ne 1 -or $assets[0].digest -cnotmatch '^sha256:[a-f0-9]{64}$') {
+            throw "Expected exactly one $expected asset with a SHA-256 digest."
+          }
+          New-Item -ItemType Directory -Force artifacts/marketplace | Out-Null
+          gh release download $env:RELEASE_TAG --pattern $expected --dir artifacts/marketplace
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $package = (Resolve-Path "artifacts/marketplace/$expected").Path
+          $digest = 'sha256:' + (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($digest -cne $assets[0].digest) { throw 'Downloaded VSIX does not match the verified Release asset.' }
+          "path=$package" >> $env:GITHUB_OUTPUT
+      - name: Publish VS Code extension
+        shell: pwsh
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          PACKAGE_PATH: ${{ steps.asset.outputs.path }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) { throw 'VSCE_PAT is missing from the release environment.' }
+          npm exec --workspace=bicepflex -- vsce publish --packagePath $env:PACKAGE_PATH
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
