@@ -644,7 +644,6 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
 
     private string ApplyHeaderPolicies(string source, HashSet<string> ignored)
     {
-        if (options.BicepUnionLayout == "auto" && options.BicepConditionalHeader == "inline") return source;
         var tree = new SyntaxTree(Parse(source).ProgramSyntax);
         var protectedSpans = ProtectedSpans(tree, ignored);
         bool IsProtected(SyntaxBase node) => protectedSpans.Any(s => s.Position <= node.Span.Position && s.GetEndPosition() >= node.Span.GetEndPosition());
@@ -657,33 +656,63 @@ sealed partial class Engine(BicepCompiler compiler, IOUri uri, FormatOptions opt
             return source[start..end];
         }
         var changes = new List<TextEdit>();
-        if (options.BicepUnionLayout is "multiline" or "preserve")
+        foreach (var union in tree.Nodes.OfType<UnionTypeSyntax>())
         {
-            foreach (var union in tree.Nodes.OfType<UnionTypeSyntax>())
+            if (IsProtected(union)) continue;
+            var members = union.Children.OfType<UnionTypeMemberSyntax>().ToArray();
+            if (members.Length < 2) continue;
+            var breaks = authorUnionBreaks.GetValueOrDefault(tree.Path(union));
+            if (options.BicepUnionLayout == "preserve" && breaks is null) continue;
+            if (options.BicepUnionLayout == "auto" &&
+                (SyntaxTree.HasComments(union) ||
+                    members.Any(member => SyntaxTree.Slice(source, member.Value).Contains('\n')))) continue;
+            var previous = tree.Tokens.LastOrDefault(t => t.Type != TokenType.NewLine && t.Span.GetEndPosition() <= union.Span.Position);
+            if (previous is null) continue;
+            var padding = LineIndent(previous.Span.Position) + indent;
+            var start = previous.Span.GetEndPosition();
+            var lineStart = source.LastIndexOf('\n', Math.Max(0, start - 1)) + 1;
+            var column = source[lineStart..start].Replace("\t", new string(' ', options.TabWidth)).Length;
+            for (var index = 0; index < members.Length; index++)
             {
-                if (IsProtected(union)) continue;
-                var members = union.Children.OfType<UnionTypeMemberSyntax>().ToArray();
-                if (members.Length < 2) continue;
-                var breaks = authorUnionBreaks.GetValueOrDefault(tree.Path(union));
-                if (options.BicepUnionLayout == "preserve" && breaks is null) continue;
-                var previous = tree.Tokens.LastOrDefault(t => t.Type != TokenType.NewLine && t.Span.GetEndPosition() <= union.Span.Position);
-                if (previous is null) continue;
-                var padding = LineIndent(previous.Span.Position) + indent;
-                var start = previous.Span.GetEndPosition();
-                for (var index = 0; index < members.Length; index++)
+                var member = members[index];
+                var gap = source[start..member.Value.Span.Position];
+                var separator = index == 0
+                    ? options.BicepUnionLayout == "auto" && previous.Type == TokenType.LeftParen ? "" : " "
+                    : " | ";
+                var memberWidth = SyntaxTree.Slice(source, member.Value)
+                    .Replace("\t", new string(' ', options.TabWidth)).Length;
+                // Only join a first member to a header, not to the preceding tuple item.
+                if (gap.All(c => char.IsWhiteSpace(c) || c == '|') &&
+                    (options.BicepUnionLayout != "auto" || index > 0 ||
+                        previous.Text is "=" or ":" or "("))
                 {
-                    var member = members[index];
-                    var gap = source[start..member.Value.Span.Position];
-                    if (gap.All(c => char.IsWhiteSpace(c) || c == '|'))
+                    var broken = options.BicepUnionLayout == "multiline" ||
+                        options.BicepUnionLayout == "preserve" && index < breaks?.Length && breaks[index];
+                    if (options.BicepUnionLayout == "auto")
                     {
-                        var broken = options.BicepUnionLayout == "multiline" ||
-                            index < breaks?.Length && breaks[index];
-                        changes.Add(new(start, gap.Length, broken
-                            ? "\n" + padding + "| "
-                            : index == 0 ? " " : " | "));
+                        var suffixWidth = 0;
+                        if (index == members.Length - 1)
+                        {
+                            var end = member.Value.Span.GetEndPosition();
+                            var newline = source.IndexOf('\n', end);
+                            suffixWidth = source[end..(newline < 0 ? source.Length : newline)]
+                                .TrimEnd().Replace("\t", new string(' ', options.TabWidth)).Length;
+                        }
+                        broken = column + separator.Length + memberWidth + suffixWidth > options.PrintWidth;
                     }
-                    start = member.Value.Span.GetEndPosition();
+                    separator = broken ? "\n" + padding + "| " : separator;
+                    changes.Add(new(start, gap.Length, separator));
+                    column = broken
+                        ? padding.Replace("\t", new string(' ', options.TabWidth)).Length + 2 + memberWidth
+                        : column + separator.Length + memberWidth;
                 }
+                else
+                {
+                    var end = member.Value.Span.GetEndPosition();
+                    lineStart = source.LastIndexOf('\n', Math.Max(0, end - 1)) + 1;
+                    column = source[lineStart..end].Replace("\t", new string(' ', options.TabWidth)).Length;
+                }
+                start = member.Value.Span.GetEndPosition();
             }
         }
         source = TextEdit.Apply(source, changes);

@@ -175,6 +175,12 @@ test("VS Code settings and offline schema cover the same Bicep options", async (
     contributed["bicepFlex.bicepConditionalHeader"].description,
     /Default: "compact"/,
   );
+  const unionLayout = contributed["bicepFlex.bicepUnionLayout"];
+  assert.equal(unionLayout.default, "auto");
+  assert.deepEqual(unionLayout.enum, ["auto", "multiline", "preserve"]);
+  assert.match(unionLayout.enumDescriptions[0], /as many.*per line.*width/);
+  assert.match(unionLayout.enumDescriptions[1], /separate line.*first/);
+  assert.match(unionLayout.enumDescriptions[2], /authored.*breaks/);
   assert.deepEqual(
     Object.keys(contributed)
       .map((name) => name.replace(/^bicepFlex\./, ""))

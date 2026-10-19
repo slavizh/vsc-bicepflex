@@ -221,7 +221,7 @@ export const options = {
     "compact",
   ),
   bicepUnionLayout: choice(
-    "Keep unions width-aware, multiline, or in their authored member layout.",
+    "Pack union members to the print width, put one member per line, or preserve authored member breaks.",
     ["auto", "multiline", "preserve"],
     "auto",
   ),

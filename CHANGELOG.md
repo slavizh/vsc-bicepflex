@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.4.0 (2026-10-19)
+
+### More readable union types
+
+Long union types now use the available line width instead of putting every
+value on a separate line. For example, a list of numeric choices stays compact
+and wraps onto the next line only when needed.
+
+Choose your preferred style with **BicepFlex: Bicep Union Layout** in VS Code
+Settings (`bicepFlex.bicepUnionLayout`):
+
+- **`auto` (default):** fit as many values as possible on each line, wrapping
+  before `|` at your configured print width.
+- **`multiline`:** put each value on its own line.
+- **`preserve`:** keep the line breaks you wrote.
+
+Existing settings continue to work. No configuration change is needed to use
+the improved default.
+
+### Updated Bicep support
+
+BicepFlex now includes **Bicep 0.48.1**, bringing the formatter up to date with
+that version's language support and compiler fixes. Supporting dependencies
+also include security updates.
+
 ## 0.3.1 (2026-10-05)
 
 - Add a BicepFlex icon from the supplied high-resolution flexed-arm artwork
