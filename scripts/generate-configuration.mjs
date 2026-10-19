@@ -239,9 +239,10 @@ const choiceDescriptions = {
     inherit: "follow declaration spacing",
   },
   bicepUnionLayout: {
-    auto: "keep short unions inline and wrap long ones",
-    multiline: "put each union member on a separate line",
-    preserve: "keep source union layout even beyond width when safe",
+    auto: "fit as many union members as possible per line, wrapping before | at the print width",
+    multiline: "put each union member on a separate line, including the first",
+    preserve:
+      "retain authored union member breaks even beyond the print width when safe",
   },
   bicepConditionalHeader: {
     compact:

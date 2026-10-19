@@ -168,6 +168,113 @@ test("import spacing is independently selectable and inherits declaration spacin
   }
 });
 
+test("default union layout fills each line up to the width target", async () => {
+  const members = Array.from({ length: 50 }, (_, index) => index + 1);
+  const source = `type day=${members.join("|")}\n`;
+  const expected =
+    `type day = ${members.slice(0, 36).join(" | ")}\n` +
+    `  | ${members.slice(36).join(" | ")}\n`;
+  assert.equal(await stable(source), expected);
+  assert.equal(await stable(source, { bicepUnionLayout: "auto" }), expected);
+  assert.equal(
+    await stable(
+      `type day =\n${members.map((value) => `  | ${value}`).join("\n")}\n`,
+    ),
+    expected,
+  );
+  assert.equal(
+    await stable(source, { bicepUnionLayout: "multiline" }),
+    `type day =\n${members.map((value) => `  | ${value}`).join("\n")}\n`,
+  );
+  assert.equal(
+    await stable(source, { bicepUnionLayout: "preserve" }),
+    `type day = ${members.join(" | ")}\n`,
+  );
+  assert.equal(
+    await stable(expected, { bicepUnionLayout: "preserve", printWidth: 40 }),
+    expected,
+  );
+  for (const settings of [
+    { printWidth: 40 },
+    { bicepPrintWidth: 40 },
+    { printWidth: 20, tabWidth: 4 },
+    { printWidth: 20, tabWidth: 4, useTabs: true },
+    { printWidth: 20, bicepConditionalHeader: "inline" },
+  ]) {
+    const output = await stable(source, settings);
+    const width = settings.bicepPrintWidth ?? settings.printWidth;
+    for (const line of output.trimEnd().split("\n")) {
+      assert.ok(
+        line.replaceAll("\t", " ".repeat(settings.tabWidth ?? 2)).length <=
+          width,
+        `Union line exceeds ${width} columns: ${line}`,
+      );
+    }
+    assert.match(output, /\n[ \t]+\| \d+ \| \d+/);
+  }
+});
+
+test("auto unions respect exact widths, nesting, decorators and indivisible members", async () => {
+  assert.equal(
+    await stable("type V=1|2|3\n", { printWidth: 18 }),
+    "type V = 1 | 2 | 3\n",
+  );
+  assert.equal(
+    await stable("type V=1|2|3\n", { printWidth: 17 }),
+    "type V = 1 | 2\n  | 3\n",
+  );
+  assert.equal(
+    await stable("@description('Days.')\ntype day=1|2|3|4|5|6\n", {
+      printWidth: 24,
+    }),
+    "@description('Days.')\ntype day = 1 | 2 | 3 | 4\n  | 5 | 6\n",
+  );
+  assert.equal(
+    await stable("type V='a | b'|'long-indivisible-member'|'c'\n", {
+      printWidth: 20,
+    }),
+    "type V = 'a | b'\n  | 'long-indivisible-member'\n  | 'c'\n",
+  );
+  const nested = await stable(
+    "type Config={value:1|2|3|4|5|6|7|8,nested:(1|2|3|4|5|6|7|8)[]}\n",
+    { printWidth: 30 },
+  );
+  assert.match(nested, /value: 1 \| 2 \| 3 \| 4 \| 5/);
+  assert.match(nested, /nested: \(1 \| 2 \| 3 \| 4/);
+  assert.ok(
+    nested
+      .trimEnd()
+      .split("\n")
+      .every((line) => line.length <= 30),
+  );
+  assert.equal(
+    await stable("type T=[1|2|3|4|5,6|7|8|9|10]\n", { printWidth: 25 }),
+    "type T = [\n  1 | 2 | 3 | 4 | 5\n  6 | 7 | 8 | 9 | 10\n]\n",
+  );
+});
+
+test("auto union wrapping preserves comments, directives, ignored text and line endings", async () => {
+  const source =
+    "// Days.\n@description('Day choices.')\ntype day=1|2|3 /* middle */ |4|5|6 // end\n" +
+    "#disable-next-line no-unused-params\nparam unused string\n" +
+    "// prettier-ignore\ntype untouched=1|2|3|4|5|6|7|8|9|10\n";
+  const output = await stable(source, { printWidth: 24 });
+  assert.ok(output.includes("// Days."));
+  assert.ok(output.includes("/* middle */"));
+  assert.ok(output.includes("// end"));
+  assert.ok(
+    output.includes("#disable-next-line no-unused-params\nparam unused string"),
+  );
+  assert.ok(output.includes("type untouched=1|2|3|4|5|6|7|8|9|10"));
+  assert.equal(
+    await stable("type day=1|2|3|4|5|6\r\n", {
+      printWidth: 24,
+      endOfLine: "crlf",
+    }),
+    "type day = 1 | 2 | 3 | 4\r\n  | 5 | 6\r\n",
+  );
+});
+
 test("union layout can force short unions onto separate lines, including nested types", async () => {
   const source =
     "type Choice='one'|'two'\ntype Config={value:'a'|'b',nested:('x'|'y')[]}\nparam choice Choice\nparam config Config\n";

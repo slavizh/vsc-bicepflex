@@ -48,6 +48,7 @@ test("Bicep CLI emits equivalent templates before and after formatting", async (
       "param name string='Starter'\noutput enabled bool=startsWith(name,'Starter') || contains(name,'_T_')\n",
       "param recordConfig object={replica:{sourceName:''},status:'waiting',protectionMode:'Configured'}\nresource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31'=if(!empty(recordConfig.replica.sourceName)||recordConfig.status =~ 'paused'||recordConfig.status =~ 'active'?false:recordConfig.protectionMode !~ 'Disabled'){name:'identity',location:'westeurope'}\n",
       "param first object={code:'alpha'}\nparam others array=[{code:'beta'}]\noutput records array=union([{code:first.code}],map(others,entry=>{code:format('{0}-{1}',entry.code,first.code)}))\n",
+      `type day=${Array.from({ length: 50 }, (_, index) => index + 1).join("|")}\nparam selected day=37\noutput selectedDay int=selected\n`,
     ];
     for (const [index, source] of sources.entries()) {
       const input = join(directory, `before-${index}.bicep`);

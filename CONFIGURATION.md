@@ -291,7 +291,7 @@ When a `for` expression's ternary body has a wrapped condition, its `?` and
 | `bicepParameterSpacing`   | `"description"` | `"description"` groups plain parameters and separates described ones; `"inherit"` follows `bicepDeclarationSpacing`; `"preserve"` retains author gaps between consecutive parameters                                                                                |
 | `bicepImportSpacing`      | `"compact"`     | `"compact"` removes blank lines within import blocks; `"separate"` inserts one; `"preserve"` retains author spacing; `"inherit"` follows declaration spacing                                                                                                        |
 | `bicepPropertyBlankLines` | `false`         | `true` retains up to one author blank line between properties; comments/section boundaries remain protected either way                                                                                                                                              |
-| `bicepUnionLayout`        | `"auto"`        | `"auto"` keeps fitting unions inline and wraps long unions; `"multiline"` puts every member on a line; `"preserve"` retains authored member breaks even beyond width                                                                                                |
+| `bicepUnionLayout`        | `"auto"`        | `"auto"` packs as many union members as fit per line, wrapping before `\|` at the print width; `"multiline"` puts each member on its own line, including the first; `"preserve"` retains authored member breaks even beyond width                                   |
 | `bicepConditionalHeader`  | `"compact"`     | `"compact"` keeps safe direct resource/module `if` conditions intact and moves long headers below `=`; `"inline"` keeps the header on the declaration; `"auto"` moves a long unsplit header; `"next-line"` always moves it; `"preserve"` retains authored placement |
 | `bicepIfConditionLayout`  | `"inline"`      | `"inline"` keeps calls in `if` conditions inline and compacts conditional object-loop headers beyond width; `"wrap"` allows width-based wrapping; `"preserve"` retains authored call breaks                                                                         |
 | `bicepLogicalCallLayout`  | `"inline"`      | `"inline"` keeps calls under logical operators on one line even beyond width in any expression; `"wrap"` allows width-based argument wrapping; `"preserve"` retains authored argument breaks                                                                        |
@@ -408,7 +408,32 @@ var tags = { environment:'dev', owner:'platform' }
 
 Neither mode reformats the ignored text. `"move"` only allows relocating it.
 
-### Multiline union and conditional styles
+### Union layout and conditional styles
+
+`bicepUnionLayout` controls union types, including unions in nested type
+properties and parenthesized types:
+
+- `"auto"` (default) fits as many members as possible on each line, breaking
+  before `|` when the next member would exceed `printWidth`. Bicep-specific
+  `bicepPrintWidth` overrides that width. Continuation lines use one extra
+  indentation level. Comment-bearing unions and multiline members retain
+  safe compiler layout; a single indivisible member may exceed the width.
+- `"multiline"` places every member on its own line, including the first.
+- `"preserve"` retains authored member breaks, even beyond the width target.
+
+For example, the default `"auto"` at width 24 produces:
+
+<!-- prettier-ignore -->
+```bicep
+type day = 1 | 2 | 3 | 4
+  | 5 | 6 | 7 | 8 | 9
+  | 10
+```
+
+Choose a mode in VS Code with `"bicepFlex.bicepUnionLayout": "multiline"`,
+or in project configuration with `"bicepUnionLayout": "multiline"`.
+Both presets use `"auto"` unless overridden; existing mode names remain
+unchanged.
 
 With `"bicepUnionLayout": "multiline"`:
 

@@ -40,7 +40,7 @@ jobs:
           $directory = Join-Path $env:RUNNER_TEMP 'bicep-cli'
           New-Item -ItemType Directory -Force $directory | Out-Null
           $binary = Join-Path $directory "bicep$suffix"
-          Invoke-WebRequest "https://github.com/Azure/bicep/releases/download/v0.47.16/bicep-$os-$arch$suffix" -OutFile $binary
+          Invoke-WebRequest "https://github.com/Azure/bicep/releases/download/v0.48.1/bicep-$os-$arch$suffix" -OutFile $binary
           if (!$IsWindows) { & chmod +x $binary }
           $directory | Out-File -FilePath $env:GITHUB_PATH -Append
       - run: npm ci
@@ -58,8 +58,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts/upstream | Out-Null
-          Invoke-WebRequest 'https://github.com/Azure/bicep/archive/refs/tags/v0.47.16.tar.gz' -OutFile artifacts/upstream/bicep.tar.gz
-          tar -xf artifacts/upstream/bicep.tar.gz -C artifacts/upstream bicep-0.47.16/src/Bicep.Core.Samples/Files
+          Invoke-WebRequest 'https://github.com/Azure/bicep/archive/refs/tags/v0.48.1.tar.gz' -OutFile artifacts/upstream/bicep.tar.gz
+          tar -xf artifacts/upstream/bicep.tar.gz -C artifacts/upstream bicep-0.48.1/src/Bicep.Core.Samples/Files
       - if: runner.os == 'Linux'
         run: npm run test:corpus
       - name: Standalone VSIX integration

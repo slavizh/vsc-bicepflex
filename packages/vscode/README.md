@@ -23,6 +23,9 @@ need a project-local npm installation or the Prettier VS Code extension.
 - Consistent two-space indentation, line endings, and line wrapping (default
   width: 180), plus layout for objects, arrays, loops, calls, ternaries, and
   decorators.
+- Union types pack as many members as fit on each line by default, wrapping
+  before `|`. Set `bicepFlex.bicepUnionLayout` to `"multiline"` for one member
+  per line or `"preserve"` to retain authored member breaks.
 - Dependency-aware declaration ordering, configurable sections, and
   resource/module property priorities. Choose the `minimal` preset to avoid
   optional declaration and property reordering.
@@ -53,7 +56,7 @@ for every option, default, interaction, and example.
 
 ## Requirements and limitations
 
-BicepFlex uses Azure.Bicep.Core 0.47.16 and may not understand syntax added in
+BicepFlex uses Azure.Bicep.Core 0.48.1 and may not understand syntax added in
 later Bicep releases. Formatting is whole-document only. If a file is invalid
 or the output fails a safety check, the formatter reports the error instead
 of applying edits.

@@ -2,7 +2,7 @@
   "name": "bicepflex",
   "displayName": "BicepFlex",
   "description": "Standalone, configurable Bicep and Bicep parameters formatter powered by Prettier and the Bicep compiler.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "publisher": "cloudadministrator",
   "icon": "images/icon.png",
@@ -505,11 +505,11 @@
             "preserve"
           ],
           "default": "auto",
-          "description": "Keep unions width-aware, multiline, or in their authored member layout. Choices: \"auto\" — keep short unions inline and wrap long ones; \"multiline\" — put each union member on a separate line; \"preserve\" — keep source union layout even beyond width when safe. Default: \"auto\".",
+          "description": "Pack union members to the print width, put one member per line, or preserve authored member breaks. Choices: \"auto\" — fit as many union members as possible per line, wrapping before | at the print width; \"multiline\" — put each union member on a separate line, including the first; \"preserve\" — retain authored union member breaks even beyond the print width when safe. Default: \"auto\".",
           "enumDescriptions": [
-            "keep short unions inline and wrap long ones",
-            "put each union member on a separate line",
-            "keep source union layout even beyond width when safe"
+            "fit as many union members as possible per line, wrapping before | at the print width",
+            "put each union member on a separate line, including the first",
+            "retain authored union member breaks even beyond the print width when safe"
           ],
           "order": 30
         },

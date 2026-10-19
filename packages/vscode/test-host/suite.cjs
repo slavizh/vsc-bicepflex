@@ -93,6 +93,55 @@ async function run() {
     outcomes.push({ file, language, formatted: true });
   }
   const config = vscode.workspace.getConfiguration("bicepFlex");
+  const unionMembers = Array.from({ length: 50 }, (_, index) => index + 1);
+  const unionSource = `type day=${unionMembers.join("|")}\n`;
+  const wrappedUnion =
+    `type day = ${unionMembers.slice(0, 36).join(" | ")}\n` +
+    `  | ${unionMembers.slice(36).join(" | ")}\n`;
+  const unionSetting = contributed["bicepFlex.bicepUnionLayout"];
+  assert.equal(unionSetting.default, "auto");
+  assert.deepEqual(unionSetting.enum, ["auto", "multiline", "preserve"]);
+  await fs.writeFile(path.join(folder.uri.fsPath, "union.bicep"), unionSource);
+  const unionDocument = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "union.bicep"),
+  );
+  const unionEditor = await vscode.window.showTextDocument(unionDocument);
+  for (const [mode, expected] of [
+    [undefined, wrappedUnion],
+    [
+      "multiline",
+      `type day =\n${unionMembers.map((value) => `  | ${value}`).join("\n")}\n`,
+    ],
+    ["auto", wrappedUnion],
+    ["preserve", `type day = ${unionMembers.join(" | ")}\n`],
+  ]) {
+    await config.update(
+      "bicepUnionLayout",
+      mode,
+      vscode.ConfigurationTarget.Workspace,
+    );
+    assert.equal(
+      await unionEditor.edit((edit) =>
+        edit.replace(
+          new vscode.Range(
+            unionDocument.positionAt(0),
+            unionDocument.positionAt(unionDocument.getText().length),
+          ),
+          unionSource,
+        ),
+      ),
+      true,
+    );
+    await vscode.commands.executeCommand("editor.action.formatDocument");
+    assert.equal(unionDocument.getText(), expected);
+    await vscode.commands.executeCommand("editor.action.formatDocument");
+    assert.equal(unionDocument.getText(), expected);
+  }
+  await config.update(
+    "bicepUnionLayout",
+    undefined,
+    vscode.ConfigurationTarget.Workspace,
+  );
   const extensionSource =
     "extension 'br:example.invalid/bicep/extensions/sample/v1:1.0.0'  as sampleExtension\n";
   await fs.writeFile(

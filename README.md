@@ -19,12 +19,16 @@ The VSIX bundles Prettier, the plugin and its managed formatter bridge. Formatti
 require a Bicep CLI installation, a .NET SDK, Azure authentication, or network
 access. The .NET runtime itself is **not** bundled.
 
-**Language baseline:** Bicep **0.47.16**. The implementation uses the actual
+**Language baseline:** Bicep **0.48.1**. The implementation uses the actual
 `Azure.Bicep.Core` parser, binder, and layout engine, including the experimental
 syntax understood by that version. Experimental features still require the
 appropriate project `bicepconfig.json` settings. Future syntax is not assumed
 compatible. The upstream Core NuGet API is not a supported public API; it is
 pinned and upgrades must pass the compatibility suite.
+
+Union types fit as many members as possible on each line by default, wrapping
+before `|` at the configured print width. Set `bicepFlex.bicepUnionLayout` to
+`"multiline"` for one member per line or `"preserve"` to retain authored breaks.
 
 ## Installation and configuration
 
@@ -333,7 +337,7 @@ compatibility testing.
 
 ## Development and verification
 
-Source builds require a .NET 10 **SDK**, Node.js 22+, and the Bicep 0.47.16 CLI
+Source builds require a .NET 10 **SDK**, Node.js 22+, and the Bicep 0.48.1 CLI
 for compiler-equivalence tests:
 
 ```console
@@ -354,8 +358,8 @@ three components; the suite does not yet meet that target. Coverage is a
 measurement of exercised paths, not a guarantee of correct formatting for
 every Bicep input.
 
-`npm run test:corpus` uses the official Bicep 0.47.16 samples extracted under
-`artifacts/upstream/bicep-0.47.16/src/Bicep.Core.Samples/Files`, or a directory
+`npm run test:corpus` uses the official Bicep 0.48.1 samples extracted under
+`artifacts/upstream/bicep-0.48.1/src/Bicep.Core.Samples/Files`, or a directory
 specified with `BICEP_CORPUS`. `BICEP_CORPUS_FILTER` restricts debugging runs.
 The runner records idempotence and expected syntax-error refusals in
 `artifacts/corpus-results.json`. See CI for the pinned download procedure.

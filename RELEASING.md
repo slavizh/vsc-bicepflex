@@ -57,7 +57,7 @@ Linux hosted CI sets `BICEPFLEX_TEST_NO_SANDBOX=1` for the downloaded VS Code
 test host because the runner cannot install its SUID sandbox helper; ordinary
 local extension runs are not affected.
 For an additional coexistence check, set `BICEPFLEX_BICEP_VSIX` to the
-official `vscode-bicep.vsix` for Bicep 0.47.16 before running the host test.
+official `vscode-bicep.vsix` for Bicep 0.48.1 before running the host test.
 It then also checks that the language server diagnoses invalid Bicep while
 formatted valid Bicep and Bicep parameters files have no errors.
 
