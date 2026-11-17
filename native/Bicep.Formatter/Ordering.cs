@@ -269,7 +269,22 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
         List<SyntaxBase> Schedule(Dictionary<SyntaxBase, int> typePriorities, Action<SyntaxBase> typeEmitted)
         {
             var pending = dependencies.ToDictionary(p => p.Key, p => p.Value.ToHashSet());
-            int Position(SyntaxBase node) => typePriorities.GetValueOrDefault(node, input.IndexOf(node));
+            var typeConsumers = typePriorities.Keys.SelectMany(type => Refs(type)
+                .Where(reference => !typePriorities.ContainsKey(reference))
+                .Select(reference => (reference, type)))
+                .GroupBy(pair => pair.reference)
+                .ToDictionary(group => group.Key, group => group.Select(pair => pair.type).ToList());
+            (int Priority, int Prerequisite, int Source) Position(SyntaxBase node)
+            {
+                if (typePriorities.TryGetValue(node, out var priority)) return (priority, 0, input.IndexOf(node));
+                // Prerequisites follow their type consumers, not incomparable source
+                // indexes that can cross a preserved boundary on the next format.
+                priority = options.BicepDependencyOrder == "dependencies-first" &&
+                    typeConsumers.TryGetValue(node, out var consumers)
+                    ? consumers.Min(type => typePriorities[type])
+                    : typePriorities.Count + input.IndexOf(node);
+                return (priority, 1, input.IndexOf(node));
+            }
             var emitted = new HashSet<SyntaxBase>();
             var result = new List<SyntaxBase>();
             int Rank(SyntaxBase node)

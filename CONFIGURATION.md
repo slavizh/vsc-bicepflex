@@ -397,6 +397,8 @@ the first parent. Once its last parent is reached, the shared type is visited
 in that parent's property-reference order, not an earlier ancestor's order.
 Import prerequisites and preserved declaration positions are included when
 determining the parent order, without requiring a second formatting pass.
+With dependency-first scheduling, imports follow the priorities of the types
+that need them, so preserved outputs do not cause imports to move on a later pass.
 This applies at every nesting depth. Conflicting sibling preferences do not
 create new dependency cycles. Mutually recursive types retain their authored
 internal order, and unrelated root types retain their relative order where

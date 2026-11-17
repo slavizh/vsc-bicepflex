@@ -18,6 +18,8 @@ Type declarations now follow the order you use them:
 A shared type still appears after all the types that use it, following the
 property order of its last parent. Formatting again keeps the same result.
 This also holds when imports or preserved output positions constrain the order.
+Imports stay in the same positions on repeat formatting, including with a custom
+declaration order that puts types before imports.
 
 No configuration changes are needed. Your existing type-ordering setting
 still lets you keep the original order or place supporting types first.

@@ -483,6 +483,95 @@ test("type reference priorities also guide non-type dependency walks", async () 
   ]);
 });
 
+test("type priorities stay ahead of import prerequisites at preserved outputs", async () => {
+  const source = [
+    "import { Second as Unused } from './import-types.bicep'",
+    "type Root={details:Details}",
+    "type Sibling={imported:Imported}",
+    "output marker string='x'",
+    "type Details={first:First,second:Second,imported:Imported}",
+    "import { First as Imported } from './import-types.bicep'",
+    "type Second=string",
+    "type First=string",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepDeclarationOrder: ["type", "import", "output"],
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  const declarations = [
+    ...output.matchAll(
+      /^(?:type|output)\s+(\w+)|^import\s+\{\s+\w+\s+as\s+(\w+)/gm,
+    ),
+  ].map((match) => match[1] ?? match[2]);
+  assert.deepEqual(declarations, [
+    "Root",
+    "Imported",
+    "Sibling",
+    "Unused",
+    "marker",
+    "Details",
+    "First",
+    "Second",
+  ]);
+});
+
+test("import prerequisites follow type consumers ahead of an unrelated preserved import", async () => {
+  const source = [
+    "type Before={leaf:Leaf,imported:CountImport}",
+    "output marker string='x'",
+    "type Root={before:Before,imported:LabelImport}",
+    "import { First as LabelImport } from './import-types.bicep'",
+    "type Other={before:Before}",
+    "import * as Unused from './import-types.bicep'",
+    "import { Second as CountImport } from './import-types.bicep'",
+    "type Leaf=string",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Root",
+    "Other",
+    "Before",
+    "marker",
+    "Leaf",
+  ]);
+  assert.ok(
+    output.indexOf("Second as CountImport") < output.indexOf("type Root"),
+  );
+});
+
+test("shared type imports do not bypass their parent's prerequisite walk", async () => {
+  const source = [
+    "import { Second as SharedImport } from './import-types.bicep'",
+    "type Shared={leaf:Leaf,imported:SharedImport}",
+    "output marker string='x'",
+    "type After={leaf:Leaf}",
+    "import { First as ParentImport } from './import-types.bicep'",
+    "type Deferred={shared:Shared,imported:ParentImport}",
+    "type Ready={after:After,shared:Shared}",
+    "type Leaf=string",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepDeclarationOrder: ["type", "import", "output"],
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Ready",
+    "Deferred",
+    "Shared",
+    "marker",
+    "After",
+    "Leaf",
+  ]);
+  assert.ok(
+    output.indexOf("type Deferred") < output.indexOf("Second as SharedImport"),
+  );
+});
+
 test("nested type references retain comments and respect ordering boundaries", async () => {
   const source = [
     "type Later={text:string}",
