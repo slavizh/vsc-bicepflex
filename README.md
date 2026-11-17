@@ -340,8 +340,11 @@ compatibility testing.
 
 ## Development and verification
 
-Source builds require a .NET 10 **SDK**, Node.js 22+, and the Bicep 0.49.2 CLI
-for compiler-equivalence tests:
+Source builds and verification require a .NET 10 **SDK**, Node.js 22+,
+[PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)
+(`pwsh` on `PATH`) for the Marketplace workflow tests, and the Bicep 0.49.2 CLI
+for compiler-equivalence tests. PowerShell is required on Windows, Linux,
+and macOS; Windows PowerShell 5.1 does not provide `pwsh`.
 
 ```console
 npm ci

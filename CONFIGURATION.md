@@ -395,9 +395,12 @@ preferences. A shared type follows **all** its referencing types in
 `"dependents-first"` mode, even if this prevents placing it immediately after
 the first parent. Once its last parent is reached, the shared type is visited
 in that parent's property-reference order, not an earlier ancestor's order.
+Import prerequisites and preserved declaration positions are included when
+determining the parent order, without requiring a second formatting pass.
 This applies at every nesting depth. Conflicting sibling preferences do not
 create new dependency cycles. Mutually recursive types retain their authored
-internal order, and unrelated root types retain their relative order.
+internal order, and unrelated root types retain their relative order where
+dependency and placement constraints allow.
 
 ### Independent spacing
 

@@ -27,6 +27,11 @@
 
 ## Build and test
 
+Install Node.js 22+, the .NET 10 SDK, the pinned Bicep CLI, and
+[PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)
+before running these commands. The Marketplace workflow tests in `npm test`
+require `pwsh` on `PATH` on every platform; `npm ci` does not install it.
+
 ```console
 npm ci
 npm run check

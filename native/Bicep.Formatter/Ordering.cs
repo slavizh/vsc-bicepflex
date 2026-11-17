@@ -47,14 +47,16 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
         _ => throw new FormatException($"No declaration ordering policy is defined for {node.GetType().Name}. Disable bicepSortDeclarations for this syntax."),
     };
 
-    private Dictionary<SyntaxBase, int> TypePriorities(
+    private (Dictionary<SyntaxBase, int> Priorities, Action<SyntaxBase> Emitted) TypePriorities(
         List<SyntaxBase> input,
         Dictionary<SyntaxBase, HashSet<SyntaxBase>> dependencies,
-        Func<ObjectTypeSyntax, IEnumerable<SyntaxBase>>? typeChildren)
+        Func<ObjectTypeSyntax, IEnumerable<SyntaxBase>>? typeChildren,
+        Func<List<SyntaxBase>> emissionOrder)
     {
         var priorities = new Dictionary<SyntaxBase, int>();
-        if (options.BicepTypeOrder == "preserve") return priorities;
+        if (options.BicepTypeOrder == "preserve") return (priorities, _ => { });
         var types = input.OfType<TypeDeclarationSyntax>().Cast<SyntaxBase>().ToHashSet();
+        if (types.Count == 0) return (priorities, _ => { });
         IEnumerable<SyntaxBase> OrderedReferences(SyntaxBase node)
         {
             if (model.GetSymbolInfo(node) is DeclaredSymbol symbol && types.Contains(symbol.DeclaringSyntax))
@@ -109,6 +111,20 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
         var groupParents = groups.ToDictionary(g => g, _ => new HashSet<List<SyntaxBase>>());
         foreach (var group in groups)
             foreach (var reference in groupReferences[group]) groupParents[reference].Add(group);
+        foreach (var group in groups.Where(g => g.Count > 1))
+        {
+            var external = group.SelectMany(n => dependencies[n]).Where(n => !group.Contains(n)).ToHashSet();
+            for (var i = 0; i < group.Count; i++)
+            {
+                dependencies[group[i]].ExceptWith(group);
+                dependencies[group[i]].UnionWith(external);
+                if (i > 0) dependencies[group[i]].Add(group[i - 1]);
+            }
+        }
+        // Use the same scheduler for root priorities so imports and preserved
+        // declaration positions participate before reference preferences are applied.
+        var plannedPositions = emissionOrder().Select((node, index) => (node, index))
+            .ToDictionary(p => p.node, p => p.index);
         var visited = new HashSet<List<SyntaxBase>>();
         void Visit(List<SyntaxBase> group)
         {
@@ -124,18 +140,30 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
             foreach (var reference in groupReferences[group]) Visit(reference);
             if (options.BicepTypeOrder == "dependencies-first") Prioritize();
         }
-        foreach (var root in groups.Where(g => groupParents[g].Count == 0)) Visit(root);
-        foreach (var group in groups.Where(g => g.Count > 1))
+        foreach (var root in groups.Where(g => groupParents[g].Count == 0)
+            .OrderBy(g => plannedPositions[g[0]])) Visit(root);
+        var typeOrder = priorities.OrderBy(p => p.Value).Select(p => p.Key).ToList();
+        var emittedTypes = new HashSet<SyntaxBase>();
+        void Emitted(SyntaxBase node)
         {
-            var external = group.SelectMany(n => dependencies[n]).Where(n => !group.Contains(n)).ToHashSet();
-            for (var i = 0; i < group.Count; i++)
+            if (options.BicepTypeOrder != "dependents-first" ||
+                !components.TryGetValue(node, out var group)) return;
+            emittedTypes.Add(node);
+            var preferred = group.Where(n => !emittedTypes.Contains(n)).ToList();
+            if (preferred.Count == 0)
             {
-                dependencies[group[i]].ExceptWith(group);
-                dependencies[group[i]].UnionWith(external);
-                if (i > 0) dependencies[group[i]].Add(group[i - 1]);
+                // Placement constraints can delay a parent beyond its traversal
+                // position. Its references become preferred only when it is emitted.
+                preferred.AddRange(groupReferences[group]
+                    .Where(g => groupParents[g].All(p => p.All(emittedTypes.Contains)))
+                    .SelectMany(g => g).Where(n => !emittedTypes.Contains(n)));
             }
+            var preferredSet = preferred.ToHashSet();
+            typeOrder.RemoveAll(preferredSet.Contains);
+            typeOrder.InsertRange(0, preferred);
+            for (var i = 0; i < typeOrder.Count; i++) priorities[typeOrder[i]] = i;
         }
-        return priorities;
+        return (priorities, Emitted);
     }
 
     public List<SyntaxBase> Sort(List<SyntaxBase> input,
@@ -237,101 +265,116 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
             }
         }
 
-        var typePriorities = TypePriorities(input, dependencies, typeChildren);
-        int Position(SyntaxBase node) => typePriorities.GetValueOrDefault(node, input.IndexOf(node));
         var outputOnly = helpers.Where(h => OutputOnly(h, [], helpers)).ToHashSet();
-        var emitted = new HashSet<SyntaxBase>();
-        var result = new List<SyntaxBase>();
-        int Rank(SyntaxBase node)
+        List<SyntaxBase> Schedule(Dictionary<SyntaxBase, int> typePriorities, Action<SyntaxBase> typeEmitted)
         {
-            var kind = Kind(node);
-            if (kind == "using") return -200;
-            if (kind == "extends") return -100;
-            if (kind is "resource" or "module" && options.BicepResourceModuleOrder == "combined")
+            var pending = dependencies.ToDictionary(p => p.Key, p => p.Value.ToHashSet());
+            int Position(SyntaxBase node) => typePriorities.GetValueOrDefault(node, input.IndexOf(node));
+            var emitted = new HashSet<SyntaxBase>();
+            var result = new List<SyntaxBase>();
+            int Rank(SyntaxBase node)
             {
-                return ResourceRank();
-            }
-            if (node is OutputDeclarationSyntax && options.BicepOutputPlacement == "dependency" &&
-                !(options.BicepOutputOnlyVariables == "end" && Refs(node).Any(outputOnly.Contains)) &&
-                dependencies[node].Any(n => n is ResourceDeclarationSyntax or ModuleDeclarationSyntax))
-            {
-                return ResourceRank() - 1;
-            }
-            var index = Array.IndexOf(sections, kind);
-            return (index < 0 ? sections.Length : index) * 10;
-        }
-        int ResourceRank()
-        {
-            var indexes = new[] { Array.IndexOf(sections, "resource"), Array.IndexOf(sections, "module") }.Where(i => i >= 0).ToArray();
-            return (indexes.Length > 0 ? indexes.Min() : sections.Length) * 10;
-        }
-        void Emit(SyntaxBase node)
-        {
-            if (emitted.Contains(node)) return;
-            foreach (var helper in input.Where(h => helpers.Contains(h) && Refs(node).Contains(h)))
-            {
-                Emit(helper);
-            }
-            emitted.Add(node);
-            result.Add(node);
-        }
-        while (anchors.Any(n => !emitted.Contains(n)))
-        {
-            SyntaxBase? next;
-            if (options.BicepDependencyOrder == "dependencies-first")
-            {
-                var target = anchors.Where(n => !emitted.Contains(n)).OrderBy(Rank).ThenBy(Position).First();
-                var path = new HashSet<SyntaxBase>();
-                SyntaxBase? FirstDependency(SyntaxBase node)
+                var kind = Kind(node);
+                if (kind == "using") return -200;
+                if (kind == "extends") return -100;
+                if (kind is "resource" or "module" && options.BicepResourceModuleOrder == "combined")
                 {
-                    if (!path.Add(node)) return null;
-                    var missing = dependencies[node].Where(d => !emitted.Contains(d)).OrderBy(Position).FirstOrDefault();
-                    return missing is null ? node : FirstDependency(missing);
+                    return ResourceRank();
                 }
-                next = target is TypeDeclarationSyntax && options.BicepTypeOrder != "preserve"
-                    ? anchors.Where(n => n is TypeDeclarationSyntax && !emitted.Contains(n) && dependencies[n].All(emitted.Contains))
-                        .OrderBy(Position).FirstOrDefault()
-                    : null;
-                next ??= FirstDependency(target);
-            }
-            else
-            {
-                next = anchors.Where(n => !emitted.Contains(n) && dependencies[n].All(emitted.Contains))
-                    .OrderBy(Rank).ThenBy(Position).FirstOrDefault();
-            }
-            if (next is null)
-            {
-                // Nullable recursive types are legal. Preserve source order inside a
-                // strongly connected type component; no total dependency order exists.
-                HashSet<SyntaxBase> Reach(SyntaxBase start)
+                if (node is OutputDeclarationSyntax && options.BicepOutputPlacement == "dependency" &&
+                    !(options.BicepOutputOnlyVariables == "end" && Refs(node).Any(outputOnly.Contains)) &&
+                    pending[node].Any(n => n is ResourceDeclarationSyntax or ModuleDeclarationSyntax))
                 {
-                    var found = new HashSet<SyntaxBase>();
-                    var queue = new Stack<SyntaxBase>();
-                    queue.Push(start);
-                    while (queue.TryPop(out var node))
+                    return ResourceRank() - 1;
+                }
+                var index = Array.IndexOf(sections, kind);
+                return (index < 0 ? sections.Length : index) * 10;
+            }
+            int ResourceRank()
+            {
+                var indexes = new[] { Array.IndexOf(sections, "resource"), Array.IndexOf(sections, "module") }.Where(i => i >= 0).ToArray();
+                return (indexes.Length > 0 ? indexes.Min() : sections.Length) * 10;
+            }
+            void Emit(SyntaxBase node)
+            {
+                if (emitted.Contains(node)) return;
+                foreach (var helper in input.Where(h => helpers.Contains(h) && Refs(node).Contains(h)))
+                {
+                    Emit(helper);
+                }
+                emitted.Add(node);
+                result.Add(node);
+                typeEmitted(node);
+            }
+            HashSet<SyntaxBase> Reach(SyntaxBase start)
+            {
+                var found = new HashSet<SyntaxBase>();
+                var queue = new Stack<SyntaxBase>();
+                queue.Push(start);
+                while (queue.TryPop(out var node))
+                {
+                    if (!found.Add(node)) continue;
+                    foreach (var dep in pending[node].Where(d => !emitted.Contains(d))) queue.Push(dep);
+                }
+                return found;
+            }
+            while (anchors.Any(n => !emitted.Contains(n)))
+            {
+                SyntaxBase? next;
+                if (options.BicepDependencyOrder == "dependencies-first")
+                {
+                    var target = anchors.Where(n => !emitted.Contains(n)).OrderBy(Rank).ThenBy(Position).First();
+                    var path = new HashSet<SyntaxBase>();
+                    SyntaxBase? FirstDependency(SyntaxBase node)
                     {
-                        if (!found.Add(node)) continue;
-                        foreach (var dep in dependencies[node].Where(d => !emitted.Contains(d))) queue.Push(dep);
+                        if (!path.Add(node)) return null;
+                        var missing = pending[node].Where(d => !emitted.Contains(d)).OrderBy(Position).FirstOrDefault();
+                        return missing is null ? node : FirstDependency(missing);
                     }
-                    return found;
-                }
-                foreach (var candidate in anchors.Where(n => !emitted.Contains(n) && n is TypeDeclarationSyntax))
-                {
-                    var reachable = Reach(candidate);
-                    var component = reachable.Where(n => Reach(n).Contains(candidate)).ToHashSet();
-                    if (component.All(n => n is TypeDeclarationSyntax) &&
-                        component.All(n => dependencies[n].All(d => emitted.Contains(d) || component.Contains(d))))
+                    next = target is TypeDeclarationSyntax && options.BicepTypeOrder != "preserve"
+                        ? anchors.Where(n => n is TypeDeclarationSyntax && !emitted.Contains(n) && pending[n].All(emitted.Contains))
+                            .OrderBy(Position).FirstOrDefault()
+                        : null;
+                    if (next is null)
                     {
-                        foreach (var member in component) dependencies[member].ExceptWith(component);
-                        next = input.First(component.Contains);
-                        break;
+                        next = FirstDependency(target);
+                        if (next is TypeDeclarationSyntax && options.BicepTypeOrder != "preserve")
+                        {
+                            next = Reach(target).Where(n => n is TypeDeclarationSyntax &&
+                                pending[n].All(emitted.Contains)).OrderBy(Position).First();
+                        }
                     }
                 }
-                if (next is null) throw new FormatException("Declaration ordering contains a dependency cycle; formatting was not applied.");
+                else
+                {
+                    next = anchors.Where(n => !emitted.Contains(n) && pending[n].All(emitted.Contains))
+                        .OrderBy(Rank).ThenBy(Position).FirstOrDefault();
+                }
+                if (next is null)
+                {
+                    // Nullable recursive types are legal. Preserve source order inside a
+                    // strongly connected type component; no total dependency order exists.
+                    foreach (var candidate in anchors.Where(n => !emitted.Contains(n) && n is TypeDeclarationSyntax))
+                    {
+                        var reachable = Reach(candidate);
+                        var component = reachable.Where(n => Reach(n).Contains(candidate)).ToHashSet();
+                        if (component.All(n => n is TypeDeclarationSyntax) &&
+                            component.All(n => pending[n].All(d => emitted.Contains(d) || component.Contains(d))))
+                        {
+                            foreach (var member in component) pending[member].ExceptWith(component);
+                            next = input.First(component.Contains);
+                            break;
+                        }
+                    }
+                    if (next is null) throw new FormatException("Declaration ordering contains a dependency cycle; formatting was not applied.");
+                }
+                Emit(next);
             }
-            Emit(next);
+            foreach (var remaining in input.Where(n => !emitted.Contains(n))) Emit(remaining);
+            return result;
         }
-        foreach (var remaining in input.Where(n => !emitted.Contains(n))) Emit(remaining);
-        return result;
+
+        var (priorities, typeEmitted) = TypePriorities(input, dependencies, typeChildren, () => Schedule([], _ => { }));
+        return Schedule(priorities, typeEmitted);
     }
 }
