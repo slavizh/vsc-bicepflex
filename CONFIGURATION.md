@@ -350,6 +350,9 @@ dependencies-first: dependency, consumer, unrelated
 Both are dependency-safe. Section priorities apply before source-order
 tie-breaking, and helpers move before their first consumer. Type/function
 direction settings are intentional exceptions to dependency-first display.
+When both the dependency and type orders are `"dependencies-first"`, the selected
+type's prerequisites, including imports, are completed before unrelated ready
+types. `"ready-first"` can instead emit an unrelated type while that parent waits.
 
 ### Recursive type ordering
 

@@ -20,6 +20,8 @@ property order of its last parent. Formatting again keeps the same result.
 This also holds when imports or preserved output positions constrain the order.
 Imports stay in the same positions on repeat formatting, including with a custom
 declaration order that puts types before imports.
+When both dependency and type ordering put dependencies first, a type's imports
+and supporting types stay together before moving on to unrelated types.
 
 No configuration changes are needed. Your existing type-ordering setting
 still lets you keep the original order or place supporting types first.

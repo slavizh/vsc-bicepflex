@@ -346,19 +346,16 @@ sealed class Ordering(SemanticModel model, SyntaxTree tree, FormatOptions option
                         var missing = pending[node].Where(d => !emitted.Contains(d)).OrderBy(Position).FirstOrDefault();
                         return missing is null ? node : FirstDependency(missing);
                     }
-                    next = target is TypeDeclarationSyntax && options.BicepTypeOrder != "preserve"
-                        ? anchors.Where(n => n is TypeDeclarationSyntax && !emitted.Contains(n) && pending[n].All(emitted.Contains))
+                    // Walk the complete prerequisite closure, including preserved
+                    // non-type anchors. Only dependents-first lets unrelated ready
+                    // types precede a parent that is still blocked on an import.
+                    var typeCandidates = target is TypeDeclarationSyntax && options.BicepTypeOrder == "dependents-first"
+                        ? set : Reach(target);
+                    next = options.BicepTypeOrder != "preserve"
+                        ? typeCandidates.Where(n => n is TypeDeclarationSyntax && !emitted.Contains(n) && pending[n].All(emitted.Contains))
                             .OrderBy(Position).FirstOrDefault()
                         : null;
-                    if (next is null)
-                    {
-                        next = FirstDependency(target);
-                        if (next is TypeDeclarationSyntax && options.BicepTypeOrder != "preserve")
-                        {
-                            next = Reach(target).Where(n => n is TypeDeclarationSyntax &&
-                                pending[n].All(emitted.Contains)).OrderBy(Position).First();
-                        }
-                    }
+                    next ??= FirstDependency(target);
                 }
                 else
                 {

@@ -447,11 +447,15 @@ test("shared type priorities follow the parent emitted last after an import prer
         bicepDependencyOrder,
         bicepTypeOrder,
       });
+      const dependenciesFirst =
+        bicepDependencyOrder === "dependencies-first"
+          ? ["Labels", "Capacity", "Deferred", "Ready"]
+          : ["Capacity", "Labels", "Ready", "Deferred"];
       assert.deepEqual(
         names(output),
         bicepTypeOrder === "dependents-first"
           ? ["Ready", "Deferred", "Labels", "Capacity"]
-          : ["Capacity", "Labels", "Ready", "Deferred"],
+          : dependenciesFirst,
       );
       assert.ok(output.indexOf("import {") < output.indexOf("type Deferred"));
     }
@@ -570,6 +574,53 @@ test("shared type imports do not bypass their parent's prerequisite walk", async
   assert.ok(
     output.indexOf("type Deferred") < output.indexOf("Second as SharedImport"),
   );
+});
+
+test("dependency-first root planning completes an imported parent before unrelated roots", async () => {
+  const source = [
+    "import { First as ParentImport } from './import-types.bicep'",
+    "type Parent={branch:Branch,imported:ParentImport}",
+    "import { Second as LeafImport } from './import-types.bicep'",
+    "type Branch={leaf:Leaf}",
+    "type Neighbor={leaf:Leaf}",
+    "type Leaf={imported:LeafImport}",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepTypeOrder: "dependencies-first",
+    bicepDependencyOrder: "dependencies-first",
+    bicepDeclarationOrder: ["type", "import", "output"],
+  });
+  assert.deepEqual(names(output), ["Leaf", "Branch", "Parent", "Neighbor"]);
+});
+
+test("preserved output walks prioritize transitive type prerequisites before imports", async () => {
+  const source = [
+    "import { Second as RootImport } from './import-types.bicep'",
+    "type Early={leaf:Leaf}",
+    "type Before={branch:Branch,early:Early}",
+    "output marker string='x'",
+    "type Branch={early:Early}",
+    "import { First as BranchImport } from './import-types.bicep'",
+    "type Leaf={value:string}",
+    "type Root={leaf:Leaf,later:Later,imported:RootImport}",
+    "type Later={leaf:Leaf,branch:Branch,imported:BranchImport}",
+    "type Peer={before:Before,early:Early}",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepTypeOrder: "dependencies-first",
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Leaf",
+    "Early",
+    "Branch",
+    "Before",
+    "marker",
+    "Later",
+    "Root",
+    "Peer",
+  ]);
 });
 
 test("nested type references retain comments and respect ordering boundaries", async () => {
