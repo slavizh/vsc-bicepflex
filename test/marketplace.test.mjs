@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -16,7 +23,9 @@ for (const reachable of [true, false]) {
         /- name: Verify and download the published VSIX[\s\S]*?        run: \|\r?\n([\s\S]*?)(?=      - name:)/,
       )[1]
       .replace(/^          /gm, "");
-    const directory = await mkdtemp(join(tmpdir(), "bicepflex-marketplace-"));
+    const directory = await realpath(
+      await mkdtemp(join(tmpdir(), "bicepflex-marketplace-")),
+    );
     try {
       await mkdir(join(directory, "packages", "vscode"), { recursive: true });
       await writeFile(
