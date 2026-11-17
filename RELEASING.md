@@ -21,12 +21,16 @@
    coverage measurement, the official corpus, and a real VS Code host test
    against the packaged VSIX.
 4. Use the protected GitHub `release` environment, restricted to `main` and
-   `v*` tags and requiring approval by the repository owner. Store `VSCE_PAT` as an
-   environment secret only if publishing to the Marketplace. Rotate the
-   credential before it expires; global Azure DevOps PATs stop working on
-   December 1, 2026.
+   `v*` tags and requiring approval by the repository owner. Configure the
+   Marketplace Trusted Publishing policies below before the first release.
+   Publishing uses GitHub OIDC, not a stored PAT.
 
 ## Build and test
+
+Install Node.js 22+, the .NET 10 SDK, the pinned Bicep CLI, and
+[PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)
+before running these commands. The Marketplace workflow tests in `npm test`
+require `pwsh` on `PATH` on every platform; `npm ci` does not install it.
 
 ```console
 npm ci
@@ -36,6 +40,12 @@ npm run package --workspace=bicepflex
 npm run test:host --workspace=bicepflex
 npm run test:coverage
 ```
+
+The root `package.json` overrides `glob` and `minimatch` with patched versions
+because packaging and coverage tools still request vulnerable major versions.
+Keep these overrides until their upstream dependency ranges include patched
+versions. When updating them, check coverage file selection and VSIX contents
+as well as running `npm audit`.
 
 `npm run test:coverage` restores the pinned .NET coverage tool and measures
 line and branch coverage for the TypeScript engine, the VS Code extension in
@@ -57,7 +67,7 @@ Linux hosted CI sets `BICEPFLEX_TEST_NO_SANDBOX=1` for the downloaded VS Code
 test host because the runner cannot install its SUID sandbox helper; ordinary
 local extension runs are not affected.
 For an additional coexistence check, set `BICEPFLEX_BICEP_VSIX` to the
-official `vscode-bicep.vsix` for Bicep 0.48.1 before running the host test.
+official `vscode-bicep.vsix` for Bicep 0.49.2 before running the host test.
 It then also checks that the language server diagnoses invalid Bicep while
 formatted valid Bicep and Bicep parameters files have no errors.
 
@@ -73,6 +83,39 @@ Test with Microsoft's Bicep extension installed as well as without it.
 For WSL/SSH/containers, the runtime is required on the remote extension host.
 
 ## Publish
+
+### One-time Trusted Publishing setup
+
+Microsoft recommends [Trusted Publishing with GitHub Actions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#publish-with-github-actions-and-trusted-publishing)
+instead of global Azure DevOps PATs, which retire on December 1, 2026.
+No Azure subscription, app registration, or client secret is needed for this
+GitHub Actions integration.
+
+Sign in to [Marketplace publisher management](https://marketplace.visualstudio.com/manage),
+open `cloudadministrator`, select **Trusted Publishing**, and create these two
+policies. Workflow filenames and the environment name must match exactly:
+
+| Policy name                 | Repository owner | Repository      | Workflow      | Environment |
+| --------------------------- | ---------------- | --------------- | ------------- | ----------- |
+| BicepFlex automatic release | `slavizh`        | `vsc-bicepflex` | `ci.yml`      | `release`   |
+| BicepFlex manual recovery   | `slavizh`        | `vsc-bicepflex` | `release.yml` | `release`   |
+
+Both publishing jobs have job-scoped `id-token: write` permission and use
+`vsce publish --oidc` to exchange the GitHub identity for a Marketplace
+credential valid for up to 15 minutes. Authentication failures stop the job;
+there is no PAT fallback. Keep the existing `release` environment approvals
+and branch/tag restrictions in place.
+
+Marketplace policies cannot be created by changing this repository. A publisher
+administrator must configure them before publishing. If the repository becomes
+private, use each new policy within 48 hours to activate it permanently.
+
+After the first successful OIDC publication, remove the unused `VSCE_PAT`
+GitHub secret and revoke its Azure DevOps PAT. Do not remove the credential
+before verifying the migration. See Microsoft's
+[migration announcement and guide](https://developer.microsoft.com/blog/trusted-publishing-visual-studio-marketplace/#migrating-from-a-pat).
+
+### Release and recovery
 
 After a version-changing pull request merges, successful CI on `main` detects
 the version change, verifies that `v<extension-version>` is not already used,
@@ -93,12 +136,16 @@ Do not use recovery after a version tag has been created.
 
 After the GitHub Release succeeds, the **Marketplace** job starts automatically
 and waits for separate `release` environment approval. This job runs directly
-in CI so that the protected environment supplies its `VSCE_PAT` secret;
-environment secrets are not available to this repository's reusable-workflow
-call. It downloads the published Release asset, verifies its SHA-256 digest,
+in CI and authenticates using the `ci.yml` Trusted Publishing policy.
+It downloads the published Release asset, verifies its SHA-256 digest,
 and publishes that exact VSIX without rerunning CI. If Marketplace publication
 fails, fix the cause and manually run the **Marketplace** workflow on `main`,
 supplying the published release tag (for example, `v0.3.1`). This manual path
 is also needed for releases made before automatic publication was introduced.
+The manual workflow uses the locked publishing tools from `main` while reading
+the extension version from the requested tag, so older Release assets can be
+published without relying on their old PAT-only CLI. It still verifies that
+the tag belongs to `main` and that the downloaded asset matches its digest;
+it never rebuilds or changes the released package.
 Do not attempt to republish an existing extension version. Confirm the
 published version on the Marketplace.

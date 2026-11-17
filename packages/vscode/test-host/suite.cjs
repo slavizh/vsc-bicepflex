@@ -93,6 +93,30 @@ async function run() {
     outcomes.push({ file, language, formatted: true });
   }
   const config = vscode.workspace.getConfiguration("bicepFlex");
+  await fs.writeFile(
+    path.join(folder.uri.fsPath, "nested-types.bicep"),
+    [
+      "type Labels={value:string}",
+      "type Links={value:string}",
+      "type Capacity={units:int}",
+      "type Item={labels:Labels,capacity:Capacity,links:Links}",
+      "type Branch={labels:Labels,links:Links,item:Item}",
+      "type Root={labels:Labels,links:Links,branch:Branch}",
+      "param config Root",
+    ].join("\n"),
+  );
+  const nestedTypes = await vscode.workspace.openTextDocument(
+    vscode.Uri.joinPath(folder.uri, "nested-types.bicep"),
+  );
+  await vscode.window.showTextDocument(nestedTypes);
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  const nestedTypesOutput = nestedTypes.getText();
+  assert.deepEqual(
+    [...nestedTypesOutput.matchAll(/^type\s+(\w+)/gm)].map((match) => match[1]),
+    ["Root", "Branch", "Item", "Labels", "Capacity", "Links"],
+  );
+  await vscode.commands.executeCommand("editor.action.formatDocument");
+  assert.equal(nestedTypes.getText(), nestedTypesOutput);
   const unionMembers = Array.from({ length: 50 }, (_, index) => index + 1);
   const unionSource = `type day=${unionMembers.join("|")}\n`;
   const wrappedUnion =

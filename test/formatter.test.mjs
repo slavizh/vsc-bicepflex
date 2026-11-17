@@ -311,6 +311,377 @@ test("recursive type components preserve source order", async () => {
   assert.deepEqual(names(output), ["A", "B", "value"]);
 });
 
+test("type references follow property order recursively rather than declaration order", async () => {
+  const source = [
+    "type Archive={path:string}",
+    "type Leaf={value:string}",
+    "type Branch={leaf:Leaf}",
+    "type Root={first:Branch[],second:Archive?}",
+    "param config Root",
+  ].join("\n");
+  assert.deepEqual(names(await stable(source)), [
+    "Root",
+    "Branch",
+    "Leaf",
+    "Archive",
+    "config",
+  ]);
+  assert.deepEqual(
+    names(await stable(source, { bicepTypeOrder: "dependencies-first" })),
+    ["Leaf", "Branch", "Archive", "Root", "config"],
+  );
+  for (const options of [
+    { bicepTypeOrder: "preserve" },
+    { bicepSortDeclarations: false },
+  ]) {
+    assert.deepEqual(names(await stable(source, options)), names(source));
+  }
+});
+
+test("discriminator branches and shared nested types follow reference order to a fixed point", async () => {
+  const source = [
+    "type Tail={value:string}",
+    "type Blue={kind:'blue'}",
+    "type Red={kind:'red'}",
+    "@discriminator('kind')",
+    "type Palette=Red|Blue",
+    "type Both={mode:'both',palette:Palette,tail:Tail}",
+    "type TailOnly={mode:'tail',tail:Tail}",
+    "type PaletteOnly={mode:'palette',palette:Palette}",
+    "@discriminator('mode')",
+    "type Selection=PaletteOnly|TailOnly|Both",
+    "type Catalog={selection:Selection}",
+    "param config Catalog",
+  ].join("\n");
+  const expected = [
+    "Catalog",
+    "Selection",
+    "PaletteOnly",
+    "TailOnly",
+    "Both",
+    "Palette",
+    "Red",
+    "Blue",
+    "Tail",
+    "config",
+  ];
+  assert.deepEqual(names(await stable(source)), expected);
+  assert.deepEqual(
+    names(await stable(source, { bicepDependencyOrder: "dependencies-first" })),
+    expected,
+  );
+});
+
+test("shared references follow the final nested parent's property order at every depth", async () => {
+  for (const depth of [1, 4]) {
+    const source = [
+      "type Labels={value:string}",
+      "type Links={value:string}",
+      "type Capacity={units:int}",
+      "type Item={labels:Labels,capacity:Capacity,links:Links}",
+      ...Array.from(
+        { length: depth },
+        (_, index) =>
+          `type Level${index}={labels:Labels,links:Links,next:${index + 1 === depth ? "Item" : `Level${index + 1}`}}`,
+      ),
+      "param config Level0",
+    ].join("\n");
+    const expected = [
+      ...Array.from({ length: depth }, (_, index) => `Level${index}`),
+      "Item",
+      "Labels",
+      "Capacity",
+      "Links",
+      "config",
+    ];
+    for (const bicepDependencyOrder of ["ready-first", "dependencies-first"]) {
+      assert.deepEqual(
+        names(await stable(source, { bicepDependencyOrder })),
+        expected,
+      );
+    }
+  }
+});
+
+test("type reference priorities respect preserved output placement on the first pass", async () => {
+  const source = [
+    "type First=string",
+    "output marker string='x'",
+    "type Second=string",
+    "type Unrelated=string",
+    "type Root={first:First,second:Second}",
+  ].join("\n");
+  for (const bicepDependencyOrder of ["ready-first", "dependencies-first"]) {
+    const output = await stable(source, {
+      bicepOutputPlacement: "preserve",
+      bicepDependencyOrder,
+    });
+    assert.deepEqual(names(output), [
+      "Root",
+      "First",
+      "marker",
+      "Second",
+      "Unrelated",
+    ]);
+  }
+});
+
+test("shared type priorities follow the parent emitted last after an import prerequisite", async () => {
+  const source = [
+    "type Labels={value:string}",
+    "type Capacity={units:int}",
+    "type Deferred={imported:Imported,labels:Labels,capacity:Capacity}",
+    "type Ready={capacity:Capacity,labels:Labels}",
+    "import { First as Imported } from './import-types.bicep'",
+  ].join("\n");
+  const bicepDeclarationOrder = [
+    "type",
+    ...plugin.options.bicepDeclarationOrder.default[0].value.filter(
+      (kind) => kind !== "type",
+    ),
+  ];
+  for (const bicepDependencyOrder of ["ready-first", "dependencies-first"]) {
+    for (const bicepTypeOrder of ["dependents-first", "dependencies-first"]) {
+      const output = await stable(source, {
+        bicepDeclarationOrder,
+        bicepDependencyOrder,
+        bicepTypeOrder,
+      });
+      const dependenciesFirst =
+        bicepDependencyOrder === "dependencies-first"
+          ? ["Labels", "Capacity", "Deferred", "Ready"]
+          : ["Capacity", "Labels", "Ready", "Deferred"];
+      assert.deepEqual(
+        names(output),
+        bicepTypeOrder === "dependents-first"
+          ? ["Ready", "Deferred", "Labels", "Capacity"]
+          : dependenciesFirst,
+      );
+      assert.ok(output.indexOf("import {") < output.indexOf("type Deferred"));
+    }
+  }
+});
+
+test("type reference priorities also guide non-type dependency walks", async () => {
+  const source = [
+    "type Later={leaf:Leaf}",
+    "type Root={first:Earlier,second:Later}",
+    "output marker string='x'",
+    "type Leaf=string",
+    "type Earlier={leaf:Leaf}",
+    "type Deferred={imported:Imported}",
+    "import { First as Imported } from './import-types.bicep'",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepTypeOrder: "dependencies-first",
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Leaf",
+    "Earlier",
+    "Later",
+    "Root",
+    "marker",
+    "Deferred",
+  ]);
+});
+
+test("type priorities stay ahead of import prerequisites at preserved outputs", async () => {
+  const source = [
+    "import { Second as Unused } from './import-types.bicep'",
+    "type Root={details:Details}",
+    "type Sibling={imported:Imported}",
+    "output marker string='x'",
+    "type Details={first:First,second:Second,imported:Imported}",
+    "import { First as Imported } from './import-types.bicep'",
+    "type Second=string",
+    "type First=string",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepDeclarationOrder: ["type", "import", "output"],
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  const declarations = [
+    ...output.matchAll(
+      /^(?:type|output)\s+(\w+)|^import\s+\{\s+\w+\s+as\s+(\w+)/gm,
+    ),
+  ].map((match) => match[1] ?? match[2]);
+  assert.deepEqual(declarations, [
+    "Root",
+    "Imported",
+    "Sibling",
+    "Unused",
+    "marker",
+    "Details",
+    "First",
+    "Second",
+  ]);
+});
+
+test("import prerequisites follow type consumers ahead of an unrelated preserved import", async () => {
+  const source = [
+    "type Before={leaf:Leaf,imported:CountImport}",
+    "output marker string='x'",
+    "type Root={before:Before,imported:LabelImport}",
+    "import { First as LabelImport } from './import-types.bicep'",
+    "type Other={before:Before}",
+    "import * as Unused from './import-types.bicep'",
+    "import { Second as CountImport } from './import-types.bicep'",
+    "type Leaf=string",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Root",
+    "Other",
+    "Before",
+    "marker",
+    "Leaf",
+  ]);
+  assert.ok(
+    output.indexOf("Second as CountImport") < output.indexOf("type Root"),
+  );
+});
+
+test("shared type imports do not bypass their parent's prerequisite walk", async () => {
+  const source = [
+    "import { Second as SharedImport } from './import-types.bicep'",
+    "type Shared={leaf:Leaf,imported:SharedImport}",
+    "output marker string='x'",
+    "type After={leaf:Leaf}",
+    "import { First as ParentImport } from './import-types.bicep'",
+    "type Deferred={shared:Shared,imported:ParentImport}",
+    "type Ready={after:After,shared:Shared}",
+    "type Leaf=string",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepDeclarationOrder: ["type", "import", "output"],
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Ready",
+    "Deferred",
+    "Shared",
+    "marker",
+    "After",
+    "Leaf",
+  ]);
+  assert.ok(
+    output.indexOf("type Deferred") < output.indexOf("Second as SharedImport"),
+  );
+});
+
+test("dependency-first root planning completes an imported parent before unrelated roots", async () => {
+  const source = [
+    "import { First as ParentImport } from './import-types.bicep'",
+    "type Parent={branch:Branch,imported:ParentImport}",
+    "import { Second as LeafImport } from './import-types.bicep'",
+    "type Branch={leaf:Leaf}",
+    "type Neighbor={leaf:Leaf}",
+    "type Leaf={imported:LeafImport}",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepTypeOrder: "dependencies-first",
+    bicepDependencyOrder: "dependencies-first",
+    bicepDeclarationOrder: ["type", "import", "output"],
+  });
+  assert.deepEqual(names(output), ["Leaf", "Branch", "Parent", "Neighbor"]);
+});
+
+test("preserved output walks prioritize transitive type prerequisites before imports", async () => {
+  const source = [
+    "import { Second as RootImport } from './import-types.bicep'",
+    "type Early={leaf:Leaf}",
+    "type Before={branch:Branch,early:Early}",
+    "output marker string='x'",
+    "type Branch={early:Early}",
+    "import { First as BranchImport } from './import-types.bicep'",
+    "type Leaf={value:string}",
+    "type Root={leaf:Leaf,later:Later,imported:RootImport}",
+    "type Later={leaf:Leaf,branch:Branch,imported:BranchImport}",
+    "type Peer={before:Before,early:Early}",
+  ].join("\n");
+  const output = await stable(source, {
+    bicepTypeOrder: "dependencies-first",
+    bicepDependencyOrder: "dependencies-first",
+    bicepOutputPlacement: "preserve",
+  });
+  assert.deepEqual(names(output), [
+    "Leaf",
+    "Early",
+    "Branch",
+    "Before",
+    "marker",
+    "Later",
+    "Root",
+    "Peer",
+  ]);
+});
+
+test("nested type references retain comments and respect ordering boundaries", async () => {
+  const source = [
+    "type Later={text:string}",
+    "// Documentation for the earlier branch.",
+    "@description('Earlier branch.')",
+    "type Earlier={value:string}",
+    "type Root={nested:{first:Earlier[],second:Later?}}",
+    "",
+    "// Separate section",
+    "",
+    "type Isolated={value:Root}",
+  ].join("\n");
+  const output = await stable(source);
+  assert.deepEqual(names(output), ["Root", "Earlier", "Later", "Isolated"]);
+  assert.match(
+    output,
+    /\/\/ Documentation for the earlier branch\.\n@description\('Earlier branch\.'\)\ntype Earlier/,
+  );
+  assert.match(output, /\/\/ Separate section\n\ntype Isolated/);
+});
+
+test("recursive type groups retain internal order while their descendants follow member order", async () => {
+  const source = [
+    "type Last={value:string}",
+    "type First={value:string}",
+    "type CycleB={back:CycleA?,first:First}",
+    "type CycleA={back:CycleB?,last:Last}",
+    "type Root={cycle:CycleA}",
+    "param config Root",
+  ].join("\n");
+  assert.deepEqual(names(await stable(source)), [
+    "Root",
+    "CycleB",
+    "CycleA",
+    "First",
+    "Last",
+    "config",
+  ]);
+});
+
+test("type reference ordering follows the final required-first member layout", async () => {
+  const source = [
+    "type Optional={value:string}",
+    "type Required={value:string}",
+    "type Root={optional:Optional?,required:Required}",
+    "param config Root",
+  ].join("\n");
+  assert.deepEqual(
+    names(await stable(source, { bicepTypeMemberOrder: "required-first" })),
+    ["Root", "Required", "Optional", "config"],
+  );
+  const ignored = source.replace("type Root", "// prettier-ignore\ntype Root");
+  const output = await stable(ignored, {
+    bicepTypeMemberOrder: "required-first",
+  });
+  assert.deepEqual(names(output), ["Root", "Optional", "Required", "config"]);
+  assert.match(output, /type Root=\{optional:Optional\?,required:Required\}/);
+});
+
 test("quoted type property keys are normalized safely", async () => {
   const output = await stable(
     "type Config={'name':string,'cost-center':string}\nparam config Config\n",

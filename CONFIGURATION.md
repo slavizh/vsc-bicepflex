@@ -350,6 +350,62 @@ dependencies-first: dependency, consumer, unrelated
 Both are dependency-safe. Section priorities apply before source-order
 tie-breaking, and helpers move before their first consumer. Type/function
 direction settings are intentional exceptions to dependency-first display.
+When both the dependency and type orders are `"dependencies-first"`, the selected
+type's prerequisites, including imports, are completed before unrelated ready
+types. `"ready-first"` can instead emit an unrelated type while that parent waits.
+
+### Recursive type ordering
+
+With `bicepTypeOrder: "dependents-first"`, each parent precedes its referenced
+types. References are visited recursively in object-type property order and
+union-member order, including `@discriminator` unions. An earlier reference's
+subtree takes priority over a later reference, rather than using the original
+positions of the referenced declarations. Ordering settles in one pass, so
+formatting again does not uncover another level of reordering.
+
+For example, regardless of the initial declaration order:
+
+```bicep
+type Catalog = {
+  selection: Selection
+  archive: Archive
+}
+
+@discriminator('kind')
+type Selection = Warm | Cool
+
+type Warm = {
+  kind: 'warm'
+}
+
+type Cool = {
+  kind: 'cool'
+}
+
+type Archive = {
+  path: string
+}
+```
+
+The resulting sequence is `Catalog, Selection, Warm, Cool, Archive`.
+`"dependencies-first"` visits the same reference subtrees but puts referenced
+types before their parents. `"preserve"` retains the source type sequence.
+When `bicepTypeMemberOrder` is `"required-first"`, reference ordering follows
+the resulting property order; ignored declarations retain their authored order.
+
+Dependency and boundary constraints take precedence over reference-order
+preferences. A shared type follows **all** its referencing types in
+`"dependents-first"` mode, even if this prevents placing it immediately after
+the first parent. Once its last parent is reached, the shared type is visited
+in that parent's property-reference order, not an earlier ancestor's order.
+Import prerequisites and preserved declaration positions are included when
+determining the parent order, without requiring a second formatting pass.
+With dependency-first scheduling, imports follow the priorities of the types
+that need them, so preserved outputs do not cause imports to move on a later pass.
+This applies at every nesting depth. Conflicting sibling preferences do not
+create new dependency cycles. Mutually recursive types retain their authored
+internal order, and unrelated root types retain their relative order where
+dependency and placement constraints allow.
 
 ### Independent spacing
 

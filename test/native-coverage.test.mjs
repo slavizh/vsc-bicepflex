@@ -56,6 +56,71 @@ async function stable(source, options = {}) {
   return output;
 }
 
+test("type ordering is stable across every declaration permutation and output placement of an imported shared-leaf graph", async () => {
+  const declarations = [
+    "import { First as ParentImport } from './import-types.bicep'",
+    "type Parent={branch:Branch,imported:ParentImport}",
+    "import { Second as LeafImport } from './import-types.bicep'",
+    "type Branch={leaf:Leaf}",
+    "type Neighbor={leaf:Leaf}",
+    "type Leaf={imported:LeafImport}",
+  ];
+  function* permutations(items) {
+    if (items.length === 0) {
+      yield [];
+      return;
+    }
+    for (let index = 0; index < items.length; index++) {
+      for (const rest of permutations(items.filter((_, i) => i !== index))) {
+        yield [items[index], ...rest];
+      }
+    }
+  }
+  const cases = [];
+  for (const ordered of permutations(declarations)) {
+    for (const bicepTypeOrder of ["dependents-first", "dependencies-first"]) {
+      for (const bicepDependencyOrder of [
+        "ready-first",
+        "dependencies-first",
+      ]) {
+        for (const bicepOutputPlacement of ["dependency", "preserve"]) {
+          cases.push(
+            request(
+              {
+                bicepTypeOrder,
+                bicepDependencyOrder,
+                bicepOutputPlacement,
+                bicepDeclarationOrder: ["type", "import", "output"],
+              },
+              {
+                text: [
+                  ...ordered.slice(0, 3),
+                  "output marker string='x'",
+                  ...ordered.slice(3),
+                ].join("\n"),
+              },
+            ),
+          );
+        }
+      }
+    }
+  }
+  const first = await bridge(cases);
+  first.forEach((response, index) =>
+    assert.equal(response.error, undefined, JSON.stringify(cases[index])),
+  );
+  const second = await bridge(
+    cases.map((entry, index) => ({ ...entry, text: first[index].text })),
+  );
+  second.forEach((response, index) =>
+    assert.equal(
+      response.text,
+      first[index].text,
+      JSON.stringify(cases[index]),
+    ),
+  );
+});
+
 test("native bridge rejects malformed requests but continues processing subsequent lines", async () => {
   const responses = await bridge([
     "{bad json",

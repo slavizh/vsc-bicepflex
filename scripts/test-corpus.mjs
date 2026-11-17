@@ -9,7 +9,7 @@ const root = resolve(
     join(
       "artifacts",
       "upstream",
-      "bicep-0.48.1",
+      "bicep-0.49.2",
       "src",
       "Bicep.Core.Samples",
       "Files",
@@ -128,7 +128,7 @@ for (const file of files) {
 child.stdin.end();
 await mkdir("artifacts", { recursive: true });
 const report = {
-  version: "0.48.1",
+  version: "0.49.2",
   total: files.length,
   formatted,
   syntaxErrors,
