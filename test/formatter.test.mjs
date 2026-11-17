@@ -311,6 +311,157 @@ test("recursive type components preserve source order", async () => {
   assert.deepEqual(names(output), ["A", "B", "value"]);
 });
 
+test("type references follow property order recursively rather than declaration order", async () => {
+  const source = [
+    "type Archive={path:string}",
+    "type Leaf={value:string}",
+    "type Branch={leaf:Leaf}",
+    "type Root={first:Branch[],second:Archive?}",
+    "param config Root",
+  ].join("\n");
+  assert.deepEqual(names(await stable(source)), [
+    "Root",
+    "Branch",
+    "Leaf",
+    "Archive",
+    "config",
+  ]);
+  assert.deepEqual(
+    names(await stable(source, { bicepTypeOrder: "dependencies-first" })),
+    ["Leaf", "Branch", "Archive", "Root", "config"],
+  );
+  for (const options of [
+    { bicepTypeOrder: "preserve" },
+    { bicepSortDeclarations: false },
+  ]) {
+    assert.deepEqual(names(await stable(source, options)), names(source));
+  }
+});
+
+test("discriminator branches and shared nested types follow reference order to a fixed point", async () => {
+  const source = [
+    "type Tail={value:string}",
+    "type Blue={kind:'blue'}",
+    "type Red={kind:'red'}",
+    "@discriminator('kind')",
+    "type Palette=Red|Blue",
+    "type Both={mode:'both',palette:Palette,tail:Tail}",
+    "type TailOnly={mode:'tail',tail:Tail}",
+    "type PaletteOnly={mode:'palette',palette:Palette}",
+    "@discriminator('mode')",
+    "type Selection=PaletteOnly|TailOnly|Both",
+    "type Catalog={selection:Selection}",
+    "param config Catalog",
+  ].join("\n");
+  const expected = [
+    "Catalog",
+    "Selection",
+    "PaletteOnly",
+    "TailOnly",
+    "Both",
+    "Palette",
+    "Red",
+    "Blue",
+    "Tail",
+    "config",
+  ];
+  assert.deepEqual(names(await stable(source)), expected);
+  assert.deepEqual(
+    names(await stable(source, { bicepDependencyOrder: "dependencies-first" })),
+    expected,
+  );
+});
+
+test("shared references follow the final nested parent's property order at every depth", async () => {
+  for (const depth of [1, 4]) {
+    const source = [
+      "type Labels={value:string}",
+      "type Links={value:string}",
+      "type Capacity={units:int}",
+      "type Item={labels:Labels,capacity:Capacity,links:Links}",
+      ...Array.from(
+        { length: depth },
+        (_, index) =>
+          `type Level${index}={labels:Labels,links:Links,next:${index + 1 === depth ? "Item" : `Level${index + 1}`}}`,
+      ),
+      "param config Level0",
+    ].join("\n");
+    const expected = [
+      ...Array.from({ length: depth }, (_, index) => `Level${index}`),
+      "Item",
+      "Labels",
+      "Capacity",
+      "Links",
+      "config",
+    ];
+    for (const bicepDependencyOrder of ["ready-first", "dependencies-first"]) {
+      assert.deepEqual(
+        names(await stable(source, { bicepDependencyOrder })),
+        expected,
+      );
+    }
+  }
+});
+
+test("nested type references retain comments and respect ordering boundaries", async () => {
+  const source = [
+    "type Later={text:string}",
+    "// Documentation for the earlier branch.",
+    "@description('Earlier branch.')",
+    "type Earlier={value:string}",
+    "type Root={nested:{first:Earlier[],second:Later?}}",
+    "",
+    "// Separate section",
+    "",
+    "type Isolated={value:Root}",
+  ].join("\n");
+  const output = await stable(source);
+  assert.deepEqual(names(output), ["Root", "Earlier", "Later", "Isolated"]);
+  assert.match(
+    output,
+    /\/\/ Documentation for the earlier branch\.\n@description\('Earlier branch\.'\)\ntype Earlier/,
+  );
+  assert.match(output, /\/\/ Separate section\n\ntype Isolated/);
+});
+
+test("recursive type groups retain internal order while their descendants follow member order", async () => {
+  const source = [
+    "type Last={value:string}",
+    "type First={value:string}",
+    "type CycleB={back:CycleA?,first:First}",
+    "type CycleA={back:CycleB?,last:Last}",
+    "type Root={cycle:CycleA}",
+    "param config Root",
+  ].join("\n");
+  assert.deepEqual(names(await stable(source)), [
+    "Root",
+    "CycleB",
+    "CycleA",
+    "First",
+    "Last",
+    "config",
+  ]);
+});
+
+test("type reference ordering follows the final required-first member layout", async () => {
+  const source = [
+    "type Optional={value:string}",
+    "type Required={value:string}",
+    "type Root={optional:Optional?,required:Required}",
+    "param config Root",
+  ].join("\n");
+  assert.deepEqual(
+    names(await stable(source, { bicepTypeMemberOrder: "required-first" })),
+    ["Root", "Required", "Optional", "config"],
+  );
+  const ignored = source.replace("type Root", "// prettier-ignore\ntype Root");
+  const output = await stable(ignored, {
+    bicepTypeMemberOrder: "required-first",
+  });
+  assert.deepEqual(names(output), ["Root", "Optional", "Required", "config"]);
+  assert.match(output, /type Root=\{optional:Optional\?,required:Required\}/);
+});
+
 test("quoted type property keys are normalized safely", async () => {
   const output = await stable(
     "type Config={'name':string,'cost-center':string}\nparam config Config\n",

@@ -19,7 +19,7 @@ The VSIX bundles Prettier, the plugin and its managed formatter bridge. Formatti
 require a Bicep CLI installation, a .NET SDK, Azure authentication, or network
 access. The .NET runtime itself is **not** bundled.
 
-**Language baseline:** Bicep **0.48.1**. The implementation uses the actual
+**Language baseline:** Bicep **0.49.2**. The implementation uses the actual
 `Azure.Bicep.Core` parser, binder, and layout engine, including the experimental
 syntax understood by that version. Experimental features still require the
 appropriate project `bicepconfig.json` settings. Future syntax is not assumed
@@ -199,9 +199,12 @@ resource/module, output
 - Direct resource/module outputs follow their last dependency, before other
   consumers. Output-only variables and their associated outputs go at the end.
   Outputs with no resource/module dependencies remain at the end.
-- Referencing types come first, followed by the types they reference. A shared
-  type follows all types that reference it. Mutually recursive type components retain their
-  original internal order because no total ordering exists.
+- Referencing types come first, followed recursively by the types they reference
+  in property-reference or union-member order, including discriminator branches.
+  Earlier reference subtrees take priority over later ones; a shared type still
+  follows all types that reference it, in its last parent's reference order
+  rather than an earlier ancestor's order. Mutually recursive type components
+  retain their original internal order because no total ordering exists.
 - Functions follow their called helper functions.
 - `.bicepparam` retains parameter-assignment order and puts variables immediately
   before first use. `using`/`extends` remain in grammar-valid positions.
@@ -337,7 +340,7 @@ compatibility testing.
 
 ## Development and verification
 
-Source builds require a .NET 10 **SDK**, Node.js 22+, and the Bicep 0.48.1 CLI
+Source builds require a .NET 10 **SDK**, Node.js 22+, and the Bicep 0.49.2 CLI
 for compiler-equivalence tests:
 
 ```console
@@ -358,8 +361,8 @@ three components; the suite does not yet meet that target. Coverage is a
 measurement of exercised paths, not a guarantee of correct formatting for
 every Bicep input.
 
-`npm run test:corpus` uses the official Bicep 0.48.1 samples extracted under
-`artifacts/upstream/bicep-0.48.1/src/Bicep.Core.Samples/Files`, or a directory
+`npm run test:corpus` uses the official Bicep 0.49.2 samples extracted under
+`artifacts/upstream/bicep-0.49.2/src/Bicep.Core.Samples/Files`, or a directory
 specified with `BICEP_CORPUS`. `BICEP_CORPUS_FILTER` restricts debugging runs.
 The runner records idempotence and expected syntax-error refusals in
 `artifacts/corpus-results.json`. See CI for the pinned download procedure.

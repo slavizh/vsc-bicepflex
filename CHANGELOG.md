@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.5.0 (2026-11-17)
+
+### Updated Bicep support
+
+BicepFlex now supports **Bicep 0.49.2**, bringing newer Bicep language features
+and compiler fixes to the formatter.
+
+### Easier-to-follow type ordering
+
+Type declarations now follow the order you use them:
+
+- Types used by properties appear in the same order as those properties.
+- Discriminator variants appear in the order listed in their union.
+- These rules apply at every level of nested types, not just the top level.
+
+A shared type still appears after all the types that use it, following the
+property order of its last parent. Formatting again keeps the same result.
+
+No configuration changes are needed. Your existing type-ordering setting
+still lets you keep the original order or place supporting types first.
+
+### Security maintenance
+
+Updated development and packaging tools' dependencies to address reported
+security vulnerabilities. Formatter settings and behavior are unchanged.
+
+Marketplace releases now use short-lived GitHub identity credentials instead
+of a stored personal access token.
+
 ## 0.4.0 (2026-10-19)
 
 ### More readable union types

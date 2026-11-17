@@ -36,7 +36,8 @@ sealed partial class Layout(
         }
         if (syntax is ProgramSyntax program && options.BicepSortDeclarations)
         {
-            syntax = new ProgramSyntax(Reorder(program.Children, ordering.Sort, ordering.IsBoundary), program.EndOfFile);
+            syntax = new ProgramSyntax(Reorder(program.Children,
+                nodes => ordering.Sort(nodes, TypeChildren), ordering.IsBoundary), program.EndOfFile);
         }
         if (syntax is ObjectSyntax obj)
         {
@@ -70,9 +71,7 @@ sealed partial class Layout(
         if (syntax is ObjectTypeSyntax objectType && options.BicepTypeMemberOrder == "required-first")
         {
             syntax = new ObjectTypeSyntax(objectType.OpenBrace,
-                Reorder(objectType.Children,
-                    nodes => nodes.OrderBy(n => n is ObjectTypePropertySyntax { Value: NullableTypeSyntax } ? 1 : 0).ToList(),
-                    node => node is not ObjectTypePropertySyntax),
+                TypeChildren(objectType),
                 objectType.CloseBrace);
         }
         if (syntax is ImportedSymbolsListSyntax imports && options.BicepImportMemberOrder == "alphabetical")
@@ -100,6 +99,21 @@ sealed partial class Layout(
             ArraySyntax array => RewriteArray(array),
             _ => rewritten,
         };
+    }
+
+    private IEnumerable<SyntaxBase> TypeChildren(ObjectTypeSyntax objectType)
+    {
+        SyntaxBase ancestor = objectType;
+        while (tree.Parents.TryGetValue(ancestor, out var parent))
+        {
+            if (parent is TypeDeclarationSyntax && ignored.Contains(tree.Id(parent))) return objectType.Children;
+            ancestor = parent;
+        }
+        return options.BicepTypeMemberOrder == "required-first"
+            ? Reorder(objectType.Children,
+                nodes => nodes.OrderBy(n => n is ObjectTypePropertySyntax { Value: NullableTypeSyntax } ? 1 : 0).ToList(),
+                node => node is not ObjectTypePropertySyntax)
+            : objectType.Children;
     }
 
     private static SyntaxBase ReplaceLeadingNodes(DecorableSyntax node, ImmutableArray<SyntaxBase> leading)

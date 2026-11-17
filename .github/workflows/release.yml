@@ -22,10 +22,11 @@ jobs:
     environment: release
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: main
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -42,11 +43,13 @@ jobs:
           if ($env:RELEASE_TAG -cnotmatch '^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$') {
             throw 'Specify a stable version tag such as v0.3.0.'
           }
-          $version = (Get-Content packages/vscode/package.json -Raw | ConvertFrom-Json).version
+          $manifest = git show "$($env:RELEASE_TAG):packages/vscode/package.json"
+          if ($LASTEXITCODE -ne 0) { throw 'The release tag or its extension manifest cannot be read.' }
+          $version = ($manifest | Out-String | ConvertFrom-Json).version
           if ($env:RELEASE_TAG -cne "v$version") { throw 'The tag does not match the extension version.' }
           git fetch --no-tags origin main
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git merge-base --is-ancestor HEAD origin/main
+          git merge-base --is-ancestor $env:RELEASE_TAG origin/main
           if ($LASTEXITCODE -ne 0) { throw 'Release tag must point to a commit on main.' }
           $release = gh release view $env:RELEASE_TAG --json tagName,isDraft,assets | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'The GitHub Release is missing or cannot be read.' }
@@ -68,9 +71,7 @@ jobs:
       - name: Publish VS Code extension
         shell: pwsh
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
           PACKAGE_PATH: ${{ steps.asset.outputs.path }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:VSCE_PAT)) { throw 'VSCE_PAT is missing from the release environment.' }
-          npm exec --workspace=bicepflex -- vsce publish --packagePath $env:PACKAGE_PATH
+          npm exec --workspace=bicepflex -- vsce publish --oidc --packagePath $env:PACKAGE_PATH
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
